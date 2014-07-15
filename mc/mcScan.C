@@ -220,7 +220,7 @@ int mcScan(){
 
 
             //if(nGoodEvents > 100) break;
-            if(event > 20000) break;
+            //if(event > 20000) break;
 
             std::vector<LorentzVector> goodJets;
             //std::vector<LorentzVector> goodGenJets;
@@ -390,7 +390,7 @@ int mcScan(){
     }//file loop
 
     std::cout << " nGoodEvents: " << nGoodEvents << " nEventsTotal: " << nEventsTotal << std::endl;
-    std::cout << " nGoodEventsWeighted to 5.319 fb: " << nGoodEventsWeighted << std::endl;
+    std::cout << " nGoodEventsWeighted to 5.319 1/fb: " << nGoodEventsWeighted << std::endl;
 
     TCanvas* c1 = new TCanvas("c1"); 
     TString prefix("plots/");
