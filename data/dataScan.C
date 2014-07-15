@@ -323,7 +323,7 @@ int dataScan(){
                 cout << "shouldn't end up with pair[i] == -1" << endl;
             }
 
-            double mt = MT(leps[0], leps[1], leps[2], pfmet_type1cor(), metphi());
+            double mt = MT(leps[0]+leps[1]+leps[2], pfmet_type1cor(), metphi());
             h1D_mt_file->Fill(mt);
 
             h1D_zmass_file->Fill(mass); 
@@ -363,6 +363,13 @@ int dataScan(){
 
     gStyle->SetOptStat("rme");
 
+    c1->SetLogz(1); // XXX
+    h2D_ht_vs_njets->Draw("colz");
+    c1->SaveAs(prefix+"h2D_ht_vs_njets.pdf");
+    c1->SetLogz(0); // XXX
+    h2D_met_vs_njets->Draw("colz");
+    c1->SaveAs(prefix+"h2D_met_vs_njets.pdf");
+
     std::string common = " --luminosity 5.319";
     drawStacked(h1D_leppt_all_vec, prefix+"h1D_leppt_all.pdf", "--logscale"+common);
     drawStacked(h1D_njets_vec, prefix+"h1D_njets.pdf", ""+common);
@@ -380,13 +387,7 @@ int dataScan(){
     drawStacked(h1D_lepeta_vec,prefix+"h1D_lepeta.pdf",""+common);
     drawStacked(h1D_zmass_vec,prefix+"h1D_zmass.pdf",""+common);
 
-    h2D_met_vs_njets->Draw("colz");
-    c1->SaveAs(prefix+"h2D_met_vs_njets.pdf");
 
-    c1->SetLogz(1); // XXX
-    h2D_ht_vs_njets->Draw("colz");
-    c1->SaveAs(prefix+"h2D_ht_vs_njets.pdf");
-    c1->SetLogz(0); // XXX
 
 
     return 0;

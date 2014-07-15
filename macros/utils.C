@@ -49,7 +49,7 @@ bool integralCompare(TH1F* h1, TH1F* h2) {
 }
 
 void myStyle() {
-    // took these from alex
+    // took these from alex since they look nice
     gStyle->SetPadTopMargin(0.10);
     gStyle->SetPadBottomMargin(0.15);
     gStyle->SetPadLeftMargin(0.15);
@@ -65,8 +65,6 @@ void myStyle() {
     gStyle->SetLabelFont(42, "XYZ");
     gStyle->SetLabelOffset(0.007, "XYZ");
     gStyle->SetLabelSize(0.05, "XYZ");
-
-
 }
 
 void drawLabel(float x1, float y1, TString s, float size=0.04, int align=13) {
@@ -75,6 +73,23 @@ void drawLabel(float x1, float y1, TString s, float size=0.04, int align=13) {
     label->SetTextAlign(align);
     label->SetTextSize(size);
     label->Draw();
+}
+
+vector<int> getColors() {
+    vector<int> colors;
+    colors.push_back(kMagenta-5);
+    colors.push_back(kCyan-3);
+    colors.push_back(kOrange-2);
+    colors.push_back(kRed-7);
+    colors.push_back(kGreen-2);
+    colors.push_back(kYellow-7);
+    colors.push_back(kBlue-7);
+    colors.push_back(kMagenta-4);
+    colors.push_back(kRed+3);
+    colors.push_back(kAzure+1);
+    colors.push_back(kBlack);
+    colors.push_back(kGray+2);
+    return colors;
 }
 
 int drawStacked(vector <TH1F*> hists, TString filename, std::string options = "", vector<string> titles = vector<string>()) {
@@ -131,19 +146,7 @@ int drawStacked(vector <TH1F*> hists, TString filename, std::string options = ""
     //leg->SetX2NDC(leg->GetX2()); leg->SetY2NDC(leg->GetY2());
     stack->Draw();
 
-    std::vector<int> colors;
-    colors.push_back(kMagenta-5);
-    colors.push_back(kCyan-3);
-    colors.push_back(kOrange-2);
-    colors.push_back(kRed-7);
-    colors.push_back(kGreen-2);
-    colors.push_back(kYellow-7);
-    colors.push_back(kBlue-7);
-    colors.push_back(kMagenta-4);
-    colors.push_back(kRed+3);
-    colors.push_back(kAzure+1);
-    colors.push_back(kBlack);
-    colors.push_back(kGray+2);
+    std::vector<int> colors = getColors();
 
     // "attach" a color to each histogram so they get sorted too
     // this provides visual consistency among the graphs
@@ -189,14 +192,11 @@ int drawStacked(vector <TH1F*> hists, TString filename, std::string options = ""
     leg->SetFillStyle(0);
     leg->SetBorderSize(0);
     leg->SetTextSize(0.04);
-    if(logScale) c0->SetLogy(1);
     leg->Draw();
-
 
     if(luminosity > 0) {
         drawLabel( 0.17,0.89-0.04, Form("%.2f fb^{-1}", luminosity) );
     }
-
 
     if(percentages) { 
         float dy = (leg->GetY2()-leg->GetY1())/leg->GetNRows();
@@ -208,9 +208,7 @@ int drawStacked(vector <TH1F*> hists, TString filename, std::string options = ""
         }
     }
 
-
-
-
+    if(logScale) c0->SetLogy(1);
     c0->Print(filename);
     if(logScale) c0->SetLogy(0);
 

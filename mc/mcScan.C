@@ -220,7 +220,7 @@ int mcScan(){
 
 
             //if(nGoodEvents > 100) break;
-            //if(event > 20000) break;
+            if(event > 20000) break;
 
             std::vector<LorentzVector> goodJets;
             //std::vector<LorentzVector> goodGenJets;
@@ -390,13 +390,19 @@ int mcScan(){
     }//file loop
 
     std::cout << " nGoodEvents: " << nGoodEvents << " nEventsTotal: " << nEventsTotal << std::endl;
-    std::cout << " nGoodEventsWeighted to 5.319 pb: " << nGoodEventsWeighted << std::endl;
+    std::cout << " nGoodEventsWeighted to 5.319 fb: " << nGoodEventsWeighted << std::endl;
 
     TCanvas* c1 = new TCanvas("c1"); 
     TString prefix("plots/");
 
     gStyle->SetOptStat("rme");
 
+    c1->SetLogz(1); // XXX
+    h2D_ht_vs_njets->Draw("colz");
+    c1->SaveAs(prefix+"h2D_ht_vs_njets.pdf");
+    c1->SetLogz(0); // XXX
+    h2D_met_vs_njets->Draw("colz");
+    c1->SaveAs(prefix+"h2D_met_vs_njets.pdf");
 
     std::string common = " --luminosity 5.319 --percentages ";
     drawStacked(h1D_leppt_all_vec, prefix+"h1D_leppt_all.pdf", "--logscale"+common);
@@ -416,13 +422,6 @@ int mcScan(){
     drawStacked(h1D_lepeta_vec,prefix+"h1D_lepeta.pdf",""+common);
     drawStacked(h1D_zmass_vec,prefix+"h1D_zmass.pdf",""+common);
 
-    h2D_met_vs_njets->Draw("colz");
-    c1->SaveAs(prefix+"h2D_met_vs_njets.pdf");
-
-    c1->SetLogz(1); // XXX
-    h2D_ht_vs_njets->Draw("colz");
-    c1->SaveAs(prefix+"h2D_ht_vs_njets.pdf");
-    c1->SetLogz(0); // XXX
 
 
     return 0;
