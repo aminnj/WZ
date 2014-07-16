@@ -94,8 +94,8 @@ int dataScan(){
 
     TChain *ch = new TChain("tree");
 
-    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_2012A*.root");
-    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_2012B*.root");
+    ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012A*.root");
+    ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012B*.root");
 
     int nEventsTotal = ch->GetEntries();
     int nEventsSoFar = 0;
@@ -124,38 +124,22 @@ int dataScan(){
     vector<TH1F*> h1D_leppt_Z_vec;
     vector<TH1F*> h1D_leppt_W_vec;
 
-    //float scale1fb = -1.0;
 
-    // File Loop
-    while ( (currentFile = (TFile*)fileIter.Next()) ) { 
-
-        // Get File Content
-        TFile *file = new TFile( currentFile->GetTitle() );
-        TTree *tree = (TTree*)file->Get("tree");
-        //TTreeCache::SetLearnEntries(41);
-        //tree->SetCacheSize(128*1024*1024);
-        cms2.Init(tree);
-
-        // Set Good Run List
-        if(evt_isRealData()) set_goodrun_file("final_19p49fb_cms2.txt");
-
-        TString filename(currentFile->GetTitle());
-
-        TH1F* h1D_njets_file = new TH1F("njets"+filename, "Njets", 15, 0, 15); 
-        TH1F* h1D_ht_file = new TH1F("ht"+filename, "H_{T};GeV", 100, 0, 600); 
-        TH1F* h1D_met_file = new TH1F("met"+filename, "#slash{E}_{T};GeV", 100, 0, 300); 
-        TH1F* h1D_mt_file = new TH1F("mt"+filename, "M_{T};GeV", 100, 0, 400); 
-        TH1F* h1D_nleps_file = new TH1F("nleps"+filename, "# of leptons (no cuts)", 10, 0, 10); 
-        TH1F* h1D_nleps_good_file = new TH1F("nleps_good"+filename, "# of leptons (jet, quality cuts)", 10, 0, 10); 
-        TH1F* h1D_zmass_file = new TH1F("zmass"+filename, "Z Mass;GeV", 100, 80, 110); 
-        TH1F* h1D_leppt_all_file = new TH1F("leppt_all"+filename, "lepton p_{T} (no cuts);p_{T} [GeV]", 100, 0, 150); 
-        TH1F* h1D_lepeta_all_file = new TH1F("lepeta_all"+filename, "lepton #eta (no cuts)", 100, -3.0, 3.0); 
-        TH1F* h1D_leppt_file = new TH1F("leppt"+filename, "lepton p_{T} after jet, lep quality cuts;p_{T} [GeV]", 100, 0, 150); 
-        TH1F* h1D_lepeta_file = new TH1F("lepeta"+filename, "lepton #eta after jet, lep quality cuts", 100, -3.0, 3.0); 
-        TH1F* h1D_lepeta_Z_file = new TH1F("lepeta_Z"+filename, "lepton (from Z) #eta after jet, lep quality cuts", 100, -3.0, 3.0); 
-        TH1F* h1D_lepeta_W_file = new TH1F("lepeta_W"+filename, "lepton (from W) #eta after jet, lep quality cuts", 100, -3.0, 3.0); 
-        TH1F* h1D_leppt_Z_file = new TH1F("h1D_leppt_Z"+filename, "leptons from Z: p_{T} after jet, lep quality cuts;p_{T} [GeV]", 100, 0, 150); 
-        TH1F* h1D_leppt_W_file = new TH1F("h1D_leppt_W"+filename, "leptons from W: p_{T} after jet, lep quality cuts;p_{T} [GeV]", 100, 0, 150); 
+        TH1F* h1D_njets_file = new TH1F("njets", "Njets", 15, 0, 15); 
+        TH1F* h1D_ht_file = new TH1F("ht", "H_{T};GeV", 100, 0, 600); 
+        TH1F* h1D_met_file = new TH1F("met", "#slash{E}_{T};GeV", 100, 0, 300); 
+        TH1F* h1D_mt_file = new TH1F("mt", "M_{T};GeV", 100, 0, 400); 
+        TH1F* h1D_nleps_file = new TH1F("nleps", "# of leptons (no cuts)", 10, 0, 10); 
+        TH1F* h1D_nleps_good_file = new TH1F("nleps_good", "# of leptons (jet, quality cuts)", 10, 0, 10); 
+        TH1F* h1D_zmass_file = new TH1F("zmass", "Z Mass;GeV", 100, 80, 110); 
+        TH1F* h1D_leppt_all_file = new TH1F("leppt_all", "lepton p_{T} (no cuts);p_{T} [GeV]", 100, 0, 150); 
+        TH1F* h1D_lepeta_all_file = new TH1F("lepeta_all", "lepton #eta (no cuts)", 100, -3.0, 3.0); 
+        TH1F* h1D_leppt_file = new TH1F("leppt", "lepton p_{T} after jet, lep quality cuts;p_{T} [GeV]", 100, 0, 150); 
+        TH1F* h1D_lepeta_file = new TH1F("lepeta", "lepton #eta after jet, lep quality cuts", 100, -3.0, 3.0); 
+        TH1F* h1D_lepeta_Z_file = new TH1F("lepeta_Z", "lepton (from Z) #eta after jet, lep quality cuts", 100, -3.0, 3.0); 
+        TH1F* h1D_lepeta_W_file = new TH1F("lepeta_W", "lepton (from W) #eta after jet, lep quality cuts", 100, -3.0, 3.0); 
+        TH1F* h1D_leppt_Z_file = new TH1F("h1D_leppt_Z", "leptons from Z: p_{T} after jet, lep quality cuts;p_{T} [GeV]", 100, 0, 150); 
+        TH1F* h1D_leppt_W_file = new TH1F("h1D_leppt_W", "leptons from W: p_{T} after jet, lep quality cuts;p_{T} [GeV]", 100, 0, 150); 
 
         h1D_njets_vec.push_back(h1D_njets_file); 
         h1D_ht_vec.push_back(h1D_ht_file); 
@@ -173,6 +157,23 @@ int dataScan(){
         h1D_leppt_Z_vec.push_back(h1D_leppt_Z_file); 
         h1D_leppt_W_vec.push_back(h1D_leppt_W_file); 
 
+    //float scale1fb = -1.0;
+
+    // File Loop
+    while ( (currentFile = (TFile*)fileIter.Next()) ) { 
+
+        // Get File Content
+        TFile *file = new TFile( currentFile->GetTitle() );
+        TTree *tree = (TTree*)file->Get("tree");
+        //TTreeCache::SetLearnEntries(41);
+        //tree->SetCacheSize(128*1024*1024);
+        cms2.Init(tree);
+
+        // Set Good Run List
+        if(evt_isRealData()) set_goodrun_file("final_19p49fb_cms2.txt");
+
+        TString filename(currentFile->GetTitle());
+
         // Loop over Events in current file
         unsigned int nEventsTree = tree->GetEntriesFast();
         for( unsigned int event = 0; event < nEventsTree; ++event) {
@@ -185,7 +186,7 @@ int dataScan(){
             CMS2::progress( nEventsSoFar, nEventsTotal );
 
             //if(event == 0) scale1fb = evt_scale1fb();
-            //if(event > 20000) break;
+            if(event > 20000) break;
 
             // Select Good Runs
             if( evt_isRealData() && !goodrun( evt_run(), evt_lumiBlock() ) ) continue;
