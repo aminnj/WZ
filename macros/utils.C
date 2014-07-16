@@ -85,10 +85,10 @@ vector<int> getColors() {
     colors.push_back(kYellow-7);
     colors.push_back(kBlue-7);
     colors.push_back(kMagenta-4);
-    colors.push_back(kRed+3);
+    colors.push_back(kRed+1);
     colors.push_back(kAzure+1);
-    colors.push_back(kBlack);
-    colors.push_back(kGray+2);
+    colors.push_back(kOrange-8);
+    colors.push_back(kGray);
     return colors;
 }
 
@@ -161,7 +161,7 @@ int drawStacked(vector <TH1F*> hists, TString filename, std::string options = ""
     if(logScale) std::sort(hists.begin(), hists.end(), integralCompare);
     else std::sort(hists.rbegin(), hists.rend(), integralCompare);
 
-    int integral = 0;
+    double integral = 0;
     for(unsigned int ih = 0; ih < hists.size(); ih++) {
         TString name(hists[ih]->GetName());
         TRegexp re1(".*baby_");
@@ -170,7 +170,9 @@ int drawStacked(vector <TH1F*> hists, TString filename, std::string options = ""
         cleanName(re1) = "";
         cleanName(re2) = "";
         // fill colors: http://root.cern.ch/root/html/TAttFill.html
-        hists[ih]->SetFillColor(colors[ih]);
+        if(ih < colors.size())
+            hists[ih]->SetFillColor(colors[ih]);
+
         hists[ih]->SetLineColor(kBlack);
 
         if(customTitles)
@@ -187,7 +189,7 @@ int drawStacked(vector <TH1F*> hists, TString filename, std::string options = ""
     stack->GetXaxis()->SetTitle(xlabel);
     stack->GetYaxis()->SetTitle(ylabel);
 
-    drawLabel( 0.17,0.89-0.00, Form("%i events", integral) );
+    drawLabel( 0.17,0.89-0.00, Form("%.1f events", integral) );
 
     leg->SetFillStyle(0);
     leg->SetBorderSize(0);
