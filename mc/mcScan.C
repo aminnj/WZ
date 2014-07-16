@@ -99,12 +99,18 @@ int mcScan(){
 
     TChain *ch = new TChain("tree");
 
-    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_TTW.root");
-    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_TTZJets.root");
-    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_TTJets.root");
-    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_WZ.root");
-    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_WJetsToLNu.root");
-    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_DYJetsToLL.root");
+
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_DYJetsToLL.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_TBZToLL.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_TTJets.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_TTW.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_TTZJets.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_VVVJets.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_WJetsToLNu.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_WZ.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_ZZJetsTo2L2Nu.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_ZZJetsTo2L2Q.root");
+        ch->Add("/hadoop/cms/store/user/namin/wz/baby_ZZJetsTo4L.root");
 
     // ch->Add("../../babymaker/baby_WZ_MC.root");
     // ch->Add("/home/users/namin/sandbox/condorTest/baby_TTWJets/baby_TTWJets_MC.root");
