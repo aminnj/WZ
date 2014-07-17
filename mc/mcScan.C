@@ -236,7 +236,7 @@ int mcScan(){
             std::map<int, int> goodToP4MapMu;
             float ht = 0, met = 0;
 
-            float scale = evt_scale1fb()  * 5.319;
+            float scale = evt_scale1fb()  * 19.49;
 
 
             h1D_nleps_file->Fill(els_p4().size() + mus_p4().size(), scale);
@@ -312,6 +312,7 @@ int mcScan(){
             }
 
             met = pfmet_type1cor();
+            // FIXME back to 30
             if(met < 30) continue;
 
             // FIXME
@@ -374,6 +375,9 @@ int mcScan(){
                 cout << "shouldn't end up with pair[i] == -1" << endl;
             }
 
+            // FIXME remove this line
+            //if(mass < 81 || mass > 101) continue;
+
                             //z1     z2      w1
             double mt = MT(leps[0]+leps[1]+leps[2], pfmet_type1cor(), metphi());
             h1D_mt_file->Fill(mt, scale);
@@ -396,7 +400,7 @@ int mcScan(){
     }//file loop
 
     std::cout << " nGoodEvents: " << nGoodEvents << " nEventsTotal: " << nEventsTotal << std::endl;
-    std::cout << " nGoodEventsWeighted to 5.319 1/fb: " << nGoodEventsWeighted << std::endl;
+    std::cout << " nGoodEventsWeighted to 19.49 1/fb: " << nGoodEventsWeighted << std::endl;
 
     TCanvas* c1 = new TCanvas("c1"); 
     TString prefix("plots/");
@@ -410,7 +414,7 @@ int mcScan(){
     h2D_met_vs_njets->Draw("colz");
     c1->SaveAs(prefix+"h2D_met_vs_njets.pdf");
 
-    std::string common = " --luminosity 5.319 --percentages ";
+    std::string common = " --luminosity 19.49 --percentages ";
     drawStacked(h1D_leppt_all_vec, prefix+"h1D_leppt_all.pdf", "--logscale"+common);
     drawStacked(h1D_njets_vec, prefix+"h1D_njets.pdf", ""+common);
     drawStacked(h1D_ht_vec,prefix+"h1D_ht.pdf","--logscale"+common);

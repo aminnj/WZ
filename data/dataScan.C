@@ -96,6 +96,8 @@ int dataScan(){
 
     ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012A*.root");
     ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012B*.root");
+    ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012C*.root");
+    ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012D*.root");
 
     int nEventsTotal = ch->GetEntries();
     int nEventsSoFar = 0;
@@ -186,7 +188,7 @@ int dataScan(){
             CMS2::progress( nEventsSoFar, nEventsTotal );
 
             //if(event == 0) scale1fb = evt_scale1fb();
-            if(event > 20000) break;
+            //if(event > 20000) break;
 
             // Select Good Runs
             if( evt_isRealData() && !goodrun( evt_run(), evt_lumiBlock() ) ) continue;
@@ -355,9 +357,9 @@ int dataScan(){
       std::cout << " nGoodEvents scaled to 1/fb: " << nGoodEvents*(1000.0/584.392) << std::endl;
       */
 
-    std::cout << "This dataset (A+B) has 5.319 fb^-1 of data" << std::endl;
-    std::cout << " nGoodEvents scaled to 1/fb: " << nGoodEvents*(1.0/5.319) << std::endl;
-    std::cout << " nGoodEvents scaled to 19.5/fb: " << nGoodEvents*(19.49/5.319) << std::endl;
+    std::cout << "This dataset (A+B+C+D) has 19.49 fb^-1 of data" << std::endl;
+    std::cout << " nGoodEvents scaled to 1/fb: " << nGoodEvents*(1.0/19.49) << std::endl;
+    std::cout << " nGoodEvents scaled to 19.49/fb: " << nGoodEvents*(19.49/19.49) << std::endl;
 
     TCanvas* c1 = new TCanvas("c1"); 
     TString prefix("plots/");
@@ -371,7 +373,7 @@ int dataScan(){
     h2D_met_vs_njets->Draw("colz");
     c1->SaveAs(prefix+"h2D_met_vs_njets.pdf");
 
-    std::string common = " --luminosity 5.319";
+    std::string common = " --luminosity 19.49";
     drawStacked(h1D_leppt_all_vec, prefix+"h1D_leppt_all.pdf", "--logscale"+common);
     drawStacked(h1D_njets_vec, prefix+"h1D_njets.pdf", ""+common);
     drawStacked(h1D_ht_vec,prefix+"h1D_ht.pdf","--logscale"+common);
