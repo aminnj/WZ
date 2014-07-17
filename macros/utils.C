@@ -92,7 +92,7 @@ vector<int> getColors() {
     return colors;
 }
 
-int drawStacked(vector <TH1F*> hists, TString filename, std::string options = "", vector<string> titles = vector<string>()) {
+int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string options = "", vector<string> titles = vector<string>()) {
 
     if(hists.size() < 1) return 1;
 
@@ -104,6 +104,8 @@ int drawStacked(vector <TH1F*> hists, TString filename, std::string options = ""
     TString ylabel = hists[0]->GetYaxis()->GetTitle();
     bool logScale = false;
     bool percentages = false;
+    bool haveData = (data->GetEntries() > 0);
+    // bool haveData = false;
     double luminosity = 0.0;
 
     TString s(options);
@@ -135,6 +137,25 @@ int drawStacked(vector <TH1F*> hists, TString filename, std::string options = ""
 
     THStack* stack = new THStack("stack", hists[0]->GetTitle());
     TCanvas* c0 = new TCanvas();
+    TPad *pTop, *pBot;
+    float padYScale = 1.0;
+
+    if(haveData) {
+        pTop = new  TPad("pTop","top pad", 0.0, 1.0, 1,0.175);
+        padYScale = (1.0-0.175);
+        pBot = new  TPad("pBot","bottom pad", 0.0, 0.193, 1.0,0.00);
+        pTop->Draw();
+        pBot->Draw();
+    } else {
+        pTop = new  TPad("pTop","top pad", 0.0, 1.0, 1,0);
+        pBot = new  TPad("pBot","bottom pad", 0.0, 0.0, 0.0, 0.0);
+        pTop->Draw();
+    }
+    pTop->cd();
+
+
+    //c0->Divide(1,2);
+    //c0->cd(1);
 
     //  xy origin starts at bot left 
     // x1  y1  x2  y2
@@ -189,30 +210,102 @@ int drawStacked(vector <TH1F*> hists, TString filename, std::string options = ""
     stack->GetXaxis()->SetTitle(xlabel);
     stack->GetYaxis()->SetTitle(ylabel);
 
-    drawLabel( 0.17,0.89-0.00, Form("%.1f events", integral) );
 
     leg->SetFillStyle(0);
     leg->SetBorderSize(0);
     leg->SetTextSize(0.04);
     leg->Draw();
 
+    float labelYOffset = 0.0, labelDY = 0.04;
+
+    drawLabel( 0.17,0.89-labelYOffset, Form("%.1f events (MC)", integral) );
+    labelYOffset += labelDY;
+
+    if(haveData) {
+        drawLabel( 0.17,0.89-labelYOffset, Form("%.1f events (Data)", data->Integral(0,data->GetNbinsX()+1) ) );
+        labelYOffset += labelDY;
+    }
+
     if(luminosity > 0) {
-        drawLabel( 0.17,0.89-0.04, Form("%.2f fb^{-1}", luminosity) );
+        drawLabel( 0.17,0.89-labelYOffset, Form("%.2f fb^{-1}", luminosity) );
+        labelYOffset += labelDY;
     }
 
     if(percentages) { 
         float dy = (leg->GetY2()-leg->GetY1())/leg->GetNRows();
         float x1 = leg->GetX1()+0.041;
         float y2 = leg->GetY2()-0.30*dy;
+
+        if(hists.size() > 8) dy *= 1.1;
+
         for(unsigned int irow = 0; irow < hists.size(); irow++) {
             float percentage = 100.0*hists[irow]->Integral(0,hists[irow]->GetNbinsX()+1)/integral;
-            drawLabel(x1,y2-irow*dy,Form("%.0f%%",percentage),0.023,33);
+            drawLabel(x1,y2-irow*dy*padYScale,Form("%.0f%%",percentage),0.023,33);
         }
     }
 
-    if(logScale) c0->SetLogy(1);
+
+    if(haveData) {
+
+        data->UseCurrentStyle();
+        data->SetMarkerStyle(20);
+        data->SetLineColor(kBlack);
+        data->SetMarkerColor(kBlack);
+        data->SetMarkerSize(0.7);
+        data->Draw("E1 SAME");
+        leg->AddEntry(data, "Data","p");
+
+        pBot->cd();
+
+        // +filename to make the "Replacing histogram, possible memory leak" warning go away
+        TH1F* dummy = new TH1F("dummy"+filename,"dummy",data->GetNbinsX(),data->GetXaxis()->GetXmin(), data->GetXaxis()->GetXmax());
+        TH1F* dummyDenominator = new TH1F("dummyDenominator"+filename,"dummy",data->GetNbinsX(),data->GetXaxis()->GetXmin(), data->GetXaxis()->GetXmax());
+
+        dummy->Sumw2();
+        data->Sumw2();
+
+        gStyle->SetOptStat(0);
+
+        dummy->SetTitle("");
+        dummy->GetYaxis()->SetLabelSize(0.13);
+        dummy->GetXaxis()->SetLabelSize(0.13);
+        // dummy->GetYaxis()->SetTitle("#frac{data}{MC}");
+        //dummy->GetYaxis()->SetTitle("data/MC");
+        dummy->GetYaxis()->SetTitleSize(0.08);
+
+        TLatex * label = new TLatex(0.075,0.37,"data/MC");
+        label->SetNDC();
+        label->SetTextAngle(90);
+        label->SetTextAlign(13);
+        label->SetTextSize(0.13);
+
+
+        dummy->Add(data);
+        for(unsigned int ih = 0; ih < hists.size(); ih++) {
+            dummyDenominator->Add(hists[ih]);
+        }
+        dummy->Divide(dummyDenominator);
+
+        dummy->SetMarkerStyle(20);
+        dummy->SetLineColor(kBlack);
+        dummy->SetLineWidth(1);
+        dummy->SetMarkerColor(kBlack);
+        dummy->SetMarkerSize(0.7);
+
+        //dummy->GetYaxis()->SetRangeUser(0.6,1.5);
+        dummy->Draw("E1");
+
+        TLine *lineY1 = new TLine(data->GetXaxis()->GetXmin(),1,data->GetXaxis()->GetXmax(),1);
+        lineY1->SetLineColor(kRed);
+        lineY1->Draw();
+
+        label->Draw();
+
+    }
+
+    if(logScale) pTop->SetLogy(1);
     c0->Print(filename);
-    if(logScale) c0->SetLogy(0);
+    if(logScale) pTop->SetLogy(0);
 
     return 0;
 }
