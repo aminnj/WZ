@@ -4,7 +4,9 @@
 #include "TLegend.h"
 #include "TLatex.h"
 #include "TCanvas.h"
+#include "TColor.h"
 #include "TString.h"
+#include "TMath.h"
 #include "TRegexp.h"
 #include "TPRegexp.h"
 #include "TPavesText.h"
@@ -48,6 +50,15 @@ bool integralCompare(TH1F* h1, TH1F* h2) {
     return h1->Integral(0,h1->GetNbinsX()) < h2->Integral(0,h2->GetNbinsX());
 }
 
+double maxY(TH1F* data) {
+    double maxYval = 0.0;
+    for(int ib = 0; ib < data->GetNbinsX(); ib++) {
+        double val = data->GetBinContent(ib) + data->GetBinErrorUp(ib);
+        if(val > maxYval) maxYval = val;
+    }
+    return maxYval;
+}
+
 void myStyle() {
     // took these from alex since they look nice
     gStyle->SetPadTopMargin(0.10);
@@ -77,6 +88,31 @@ void drawLabel(float x1, float y1, TString s, float size=0.04, int align=13) {
 
 vector<int> getColors() {
     vector<int> colors;
+
+
+
+    int icol = 1000;
+    TColor* col;
+
+
+    // col = new TColor(icol,0.650980392,0.807843137,0.890196078); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.121568627,0.470588235,0.705882353); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.698039216,0.874509804,0.541176471); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.2,0.62745098,0.17254902); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.984313725,0.603921569,0.6); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.890196078,0.101960784,0.109803922); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.992156863,0.749019608,0.435294118); colors.push_back(icol); icol++;
+    // col = new TColor(icol,1,0.498039216,0); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.792156863,0.698039216,0.839215686); colors.push_back(icol); icol++;
+    
+    // col = new TColor(icol,0.945,0.404,0.271); colors.push_back(icol); icol++;
+    // col = new TColor(icol,1.0,0.776,0.365); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.482,0.784,0.643); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.298,0.765,0.851); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.576,0.392,0.553); colors.push_back(icol); icol++;
+    // col = new TColor(icol,0.251,0.251,0.251); colors.push_back(icol); icol++;
+
+
     colors.push_back(kMagenta-5);
     colors.push_back(kCyan-3);
     colors.push_back(kOrange-2);
@@ -84,11 +120,13 @@ vector<int> getColors() {
     colors.push_back(kGreen-2);
     colors.push_back(kYellow-7);
     colors.push_back(kBlue-7);
-    colors.push_back(kMagenta-4);
-    colors.push_back(kRed+1);
+    colors.push_back(kMagenta-9);
+    colors.push_back(kCyan-10);
     colors.push_back(kAzure+1);
     colors.push_back(kOrange-8);
     colors.push_back(kGray);
+
+
     return colors;
 }
 
@@ -105,6 +143,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
     bool logScale = false;
     bool percentages = false;
     bool haveData = (data->GetEntries() > 0);
+    bool centerLabel = false;
     // bool haveData = false;
     double luminosity = 0.0;
 
@@ -124,6 +163,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         if(key == "ylabel") ylabel = val;
         if(key == "logscale") logScale = true;
         if(key == "percentages") percentages = true;
+        if(key == "centerlabel") centerLabel = true;
         if(key == "luminosity") luminosity = val.Atof();
 
         if(key == "binsize") {
@@ -154,29 +194,19 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
     pTop->cd();
 
 
-    //c0->Divide(1,2);
-    //c0->cd(1);
-
-    //  xy origin starts at bot left 
-    // x1  y1  x2  y2
-    //TLegend* leg = new TLegend(0.7,0.55,0.90,0.88,"","NDC");
     TLegend* leg = new TLegend(0.7,0.55,0.90,0.88);
-    // NDC methods don't work later on unless I set them (?)
-    // even if I use NDC as a draw option
-    //leg->SetX1NDC(leg->GetX1()); leg->SetY1NDC(leg->GetY1());
-    //leg->SetX2NDC(leg->GetX2()); leg->SetY2NDC(leg->GetY2());
     stack->Draw();
 
     std::vector<int> colors = getColors();
 
-    // "attach" a color to each histogram so they get sorted too
-    // this provides visual consistency among the graphs
-    // maybe make this optional, though
-    // remove the SetFillColor call in the second hists loop
-
-    // for(unsigned int ih = 0; ih < hists.size(); ih++) {
-    //     hists[ih]->SetFillColor(colors[ih]);
-    // }
+    // attach custom titles to histos before we sort so they don't
+    // get jumbled!
+    if(customTitles) {
+        for(unsigned int ih = 0; ih < hists.size(); ih++) {
+            TString temp = titles[ih];
+            hists[ih]->SetTitle(temp);
+        }
+    }
 
     // bigger histograms on top for log scale, but smaller for linear scale
     if(logScale) std::sort(hists.begin(), hists.end(), integralCompare);
@@ -197,7 +227,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         hists[ih]->SetLineColor(kBlack);
 
         if(customTitles)
-            cleanName = titles[ih];
+            cleanName = hists[ih]->GetTitle();
 
         leg->AddEntry(hists[ih],cleanName,"f");
         stack->Add(hists[ih]);
@@ -216,18 +246,20 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
     leg->SetTextSize(0.04);
     leg->Draw();
 
-    float labelYOffset = 0.0, labelDY = 0.04;
+    float labelX = 0.17;
+    float labelYOffset = 0.015, labelDY = 0.04;
+    if(centerLabel) labelX = 0.42;
 
-    drawLabel( 0.17,0.89-labelYOffset, Form("%.1f events (MC)", integral) );
+    drawLabel( labelX,0.89-labelYOffset, Form("%.1f events (MC)", integral) );
     labelYOffset += labelDY;
 
     if(haveData) {
-        drawLabel( 0.17,0.89-labelYOffset, Form("%.1f events (Data)", data->Integral(0,data->GetNbinsX()+1) ) );
+        drawLabel( labelX,0.89-labelYOffset, Form("%.0f events (Data)", data->Integral(0,data->GetNbinsX()+1) ) );
         labelYOffset += labelDY;
     }
 
     if(luminosity > 0) {
-        drawLabel( 0.17,0.89-labelYOffset, Form("%.2f fb^{-1}", luminosity) );
+        drawLabel( labelX,0.89-labelYOffset, Form("%.2f fb^{-1}", luminosity) );
         labelYOffset += labelDY;
     }
 
@@ -237,6 +269,9 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         float y2 = leg->GetY2()-0.30*dy;
 
         if(hists.size() > 8) dy *= 1.1;
+        else if(hists.size() > 7) dy *= 1.067;
+        else if(hists.size() > 6) dy *= 1.04;
+        else if(hists.size() > 5) dy *= 1.02;
 
         for(unsigned int irow = 0; irow < hists.size(); irow++) {
             float percentage = 100.0*hists[irow]->Integral(0,hists[irow]->GetNbinsX()+1)/integral;
@@ -246,6 +281,8 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
 
 
     if(haveData) {
+
+        stack->SetMaximum(max(maxY(data),stack->GetMaximum()));
 
         data->UseCurrentStyle();
         data->SetMarkerStyle(20);
@@ -258,46 +295,84 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         pBot->cd();
 
         // +filename to make the "Replacing histogram, possible memory leak" warning go away
-        TH1F* dummy = new TH1F("dummy"+filename,"dummy",data->GetNbinsX(),data->GetXaxis()->GetXmin(), data->GetXaxis()->GetXmax());
-        TH1F* dummyDenominator = new TH1F("dummyDenominator"+filename,"dummy",data->GetNbinsX(),data->GetXaxis()->GetXmin(), data->GetXaxis()->GetXmax());
+        TH1F* comparison = new TH1F("comparison"+filename,"comparison",data->GetNbinsX(),data->GetXaxis()->GetXmin(), data->GetXaxis()->GetXmax());
+        TH1F* mcSum = new TH1F("mcSum"+filename,"dummy",data->GetNbinsX(),data->GetXaxis()->GetXmin(), data->GetXaxis()->GetXmax());
 
-        dummy->Sumw2();
-        data->Sumw2();
+
+
+
+
+
+        // data/MC
+        data->Sumw2(); // important
+        comparison->Add(data);
+        for(unsigned int ih = 0; ih < hists.size(); ih++) {
+            mcSum->Add(hists[ih]);
+        }
+        comparison->Divide(mcSum);
+
+        // XXX both methods give the same vals,errs, so I will use the above
+        // Alex's method: (agreeing results proves that root's doing the sum of squares correctly :) )
+        // for(int ib = 1; ib < comparison->GetNbinsX()+1; ib++) {
+        //     if(data->GetBinContent(ib) < 1) continue;
+        //     float mcVal = 0.0;
+        //     float mcErr2 = 0.0;
+        //     for(unsigned int ih = 0; ih < hists.size(); ih++) {
+        //         mcSum->Add(hists[ih]);
+        //         mcVal += hists[ih]->GetBinContent(ib);
+        //         mcErr2 += pow(hists[ih]->GetBinError(ib), 2);
+        //     }
+        //     float dataVal = data->GetBinContent(ib);
+        //     float dataErr = data->GetBinError(ib);
+        //     float mcErr = sqrt(mcErr2);
+        //     float val = dataVal/mcVal;
+        //     comparison->SetBinContent(ib, val);
+        //     comparison->SetBinError(ib, val*sqrt(pow(mcErr/mcVal,2) + pow(dataErr/dataVal,2)));
+        // }
+
+
+
+        // FIXME
+        float sum = 0.0;
+        int ndof = 0;
+        for(int ib = 0; ib < data->GetNbinsX(); ib++) {
+            if(data->GetBinContent(ib) < 1) continue;
+            float weightedResidual = fabs(mcSum->GetBinContent(ib) - data->GetBinContent(ib)) / data->GetBinError(ib);
+            sum += pow(weightedResidual*weightedResidual, 2);
+            ndof++;
+        }
+        std::cout << "Probability of data, MC agreement: " << 100.0*TMath::Prob(sum/ndof,ndof) << "%" << std::endl;
+        // FIXME
+
+
+
 
         gStyle->SetOptStat(0);
+        comparison->SetTitle("");
+        comparison->GetYaxis()->SetRangeUser(0.0, 2.0);
+        comparison->GetYaxis()->SetLabelSize(0.13);
+        comparison->GetXaxis()->SetLabelSize(0.13);
+        comparison->GetYaxis()->SetTitleSize(0.08);
+        comparison->SetMarkerStyle(20);
+        comparison->SetLineColor(kBlack);
+        comparison->SetLineWidth(1);
+        comparison->SetMarkerColor(kBlack);
+        comparison->SetMarkerSize(0.7);
+        comparison->GetYaxis()->SetNdivisions(505);
 
-        dummy->SetTitle("");
-        dummy->GetYaxis()->SetLabelSize(0.13);
-        dummy->GetXaxis()->SetLabelSize(0.13);
-        // dummy->GetYaxis()->SetTitle("#frac{data}{MC}");
-        //dummy->GetYaxis()->SetTitle("data/MC");
-        dummy->GetYaxis()->SetTitleSize(0.08);
+        comparison->Draw("E1");
 
-        TLatex * label = new TLatex(0.075,0.37,"data/MC");
-        label->SetNDC();
-        label->SetTextAngle(90);
-        label->SetTextAlign(13);
-        label->SetTextSize(0.13);
-
-
-        dummy->Add(data);
-        for(unsigned int ih = 0; ih < hists.size(); ih++) {
-            dummyDenominator->Add(hists[ih]);
-        }
-        dummy->Divide(dummyDenominator);
-
-        dummy->SetMarkerStyle(20);
-        dummy->SetLineColor(kBlack);
-        dummy->SetLineWidth(1);
-        dummy->SetMarkerColor(kBlack);
-        dummy->SetMarkerSize(0.7);
-
-        //dummy->GetYaxis()->SetRangeUser(0.6,1.5);
-        dummy->Draw("E1");
-
+        // draw red line at y=1
         TLine *lineY1 = new TLine(data->GetXaxis()->GetXmin(),1,data->GetXaxis()->GetXmax(),1);
         lineY1->SetLineColor(kRed);
         lineY1->Draw();
+
+        TLatex * label = new TLatex(0.075,0.16,"Data/MC");
+        label->SetTextFont(42);
+        label->SetNDC();
+        label->SetTextAngle(90);
+        label->SetTextAlign(13);
+        label->SetTextSize(0.20);
 
         label->Draw();
 
