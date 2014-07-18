@@ -93,26 +93,25 @@ vector<int> findZPair(std::vector<LorentzVector> goodEls, std::vector<LorentzVec
 int scan(){
 
     TH1F* h1D_njets_data = new TH1F("njets", "Njets", 15, 0, 15); 
-    TH1F* h1D_ht_data = new TH1F("ht", "H_{T};GeV", 100, 0, 600); 
-    TH1F* h1D_met_data = new TH1F("met", "#slash{E}_{T};GeV", 100, 0, 300); 
-    TH1F* h1D_mt_data = new TH1F("mt", "M_{T};GeV", 100, 0, 400); 
-    TH1F* h1D_nleps_data = new TH1F("nleps", "# of leptons (no cuts)", 10, 0, 10); 
+    TH1F* h1D_ht_data = new TH1F("ht", "H_{T};GeV", 20, 0, 600); 
+    TH1F* h1D_met_data = new TH1F("met", "#slash{E}_{T};GeV", 20, 0, 300); 
+    TH1F* h1D_met_all_data = new TH1F("met_all", "#slash{E}_{T} (all);GeV", 20, 0, 300); 
+    TH1F* h1D_mt_data = new TH1F("mt", "M_{T};GeV", 20, 0, 400); 
+    TH1F* h1D_nleps_data = new TH1F("nleps", "# of leptons (only met cut)", 10, 0, 10); 
     TH1F* h1D_nleps_good_data = new TH1F("nleps_good", "# of leptons (jet, quality cuts)", 10, 0, 10); 
-    TH1F* h1D_zmass_data = new TH1F("zmass", "Z Mass;GeV", 100, 80, 110); 
-    TH1F* h1D_leppt_all_data = new TH1F("leppt_all", "lepton p_{T} (no cuts);p_{T} [GeV]", 100, 0, 150); 
-    TH1F* h1D_lepeta_all_data = new TH1F("lepeta_all", "lepton #eta (no cuts)", 100, -3.0, 3.0); 
+    TH1F* h1D_zmass_data = new TH1F("zmass", "Z Mass;GeV", 30, 70, 120); 
+    TH1F* h1D_leppt_all_data = new TH1F("leppt_all", "lepton p_{T} (only met cut);p_{T} [GeV]", 100, 0, 150); 
+    // TH1F* h1D_lepeta_all_data = new TH1F("lepeta_all", "lepton #eta (only met cut)", 100, -3.0, 3.0); 
     TH1F* h1D_leppt_data = new TH1F("leppt", "lepton p_{T} after jet, lep quality cuts;p_{T} [GeV]", 100, 0, 150); 
-    TH1F* h1D_lepeta_data = new TH1F("lepeta", "lepton #eta after jet, lep quality cuts", 100, -3.0, 3.0); 
+    // TH1F* h1D_lepeta_data = new TH1F("lepeta", "lepton #eta after jet, lep quality cuts", 100, -3.0, 3.0); 
 
     float luminosity = 19.49;
+    float ptCut = 20;
     // DATA
     {
         TChain *ch = new TChain("tree");
 
-        ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012A*.root");
-        ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012B*.root");
-        ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012C*.root");
-        ch->Add("/hadoop/cms/store/user/namin/wz/baby_2012D*.root");
+        ch->Add("/home/users/namin/sandbox/condorTest/output/baby_2012ABCD.root");
 
         int nEventsTotal = ch->GetEntries();
         int nEventsSoFar = 0;
@@ -137,7 +136,7 @@ int scan(){
             for( unsigned int event = 0; event < nEventsTree; ++event) {
 
                 // XXX
-                //if(event > 300000) break;
+                // if(event > 30000) break;
 
                 // Get Event Content
                 cms2.GetEntry(event);
@@ -163,39 +162,48 @@ int scan(){
                 std::map<int, int> goodToP4MapMu;
                 float ht = 0, met = 0;
 
+                met = pfmet_type1cor();
+
                 h1D_nleps_data->Fill(els_p4().size() + mus_p4().size());
+                h1D_met_all_data->Fill(met);
+
+                if(met < 30) continue;
 
                 // make electron quality cuts
                 for(unsigned int iEl = 0; iEl < els_p4().size(); iEl++) {
 
                     h1D_leppt_all_data->Fill(els_p4().at(iEl).pt());
-                    h1D_lepeta_all_data->Fill(els_p4().at(iEl).eta());
+                    // h1D_lepeta_all_data->Fill(els_p4().at(iEl).eta());
 
                     if(!looseEl().at(iEl)) continue;
-                    if(els_p4().at(iEl).pt() < 25) continue;
+                    if(els_p4().at(iEl).pt() < ptCut) continue;
                     if(fabs(els_p4().at(iEl).eta()) > 2.4) continue;
 
                     h1D_leppt_data->Fill(els_p4().at(iEl).pt());
-                    h1D_lepeta_data->Fill(els_p4().at(iEl).eta());
+                    // h1D_lepeta_data->Fill(els_p4().at(iEl).eta());
 
-                    goodEls.push_back(els_p4().at(iEl));
                     goodToP4MapEl[goodEls.size()] = iEl;
+                    goodEls.push_back(els_p4().at(iEl));
                 }
                 // mirror for muons
                 for(unsigned int iMu = 0; iMu < mus_p4().size(); iMu++) {
                     h1D_leppt_all_data->Fill(mus_p4().at(iMu).pt());
-                    h1D_lepeta_all_data->Fill(mus_p4().at(iMu).eta());
+                    // h1D_lepeta_all_data->Fill(mus_p4().at(iMu).eta());
 
                     if(!looseMu().at(iMu)) continue;
-                    if(mus_p4().at(iMu).pt() < 25) continue;
+                    if(mus_p4().at(iMu).pt() < ptCut) continue;
                     if(fabs(mus_p4().at(iMu).eta()) > 2.4) continue;
 
                     h1D_leppt_data->Fill(mus_p4().at(iMu).pt());
-                    h1D_lepeta_data->Fill(mus_p4().at(iMu).eta());
+                    // h1D_lepeta_data->Fill(mus_p4().at(iMu).eta());
 
-                    goodMus.push_back(mus_p4().at(iMu));
                     goodToP4MapMu[goodMus.size()] = iMu;
+                    goodMus.push_back(mus_p4().at(iMu));
                 }
+
+                h1D_nleps_good_data->Fill(goodMus.size() + goodEls.size());
+                // require that we have 3 good leptons
+                if(goodMus.size() + goodEls.size() != 3) continue;
 
                 // select good jets
                 for (unsigned int iJet = 0; iJet < pfjets_p4().size(); iJet++){
@@ -221,12 +229,7 @@ int scan(){
                     goodJets.push_back(pfjets_p4().at(iJet));
                 }
 
-                met = pfmet_type1cor();
-                if(met < 30) continue;
 
-                h1D_nleps_good_data->Fill(goodMus.size() + goodEls.size());
-                // require that we have 3 good leptons
-                if(goodMus.size() + goodEls.size() != 3) continue;
 
                 vector<int> pair = findZPair(goodEls, goodMus);
                 vector<LorentzVector> leps;
@@ -281,17 +284,18 @@ int scan(){
     // MC
     TChain *ch = new TChain("tree");
 
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_DYJetsToLL.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_TBZToLL.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_TTJets.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_TTW.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_TTZJets.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_VVVJets.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_WJetsToLNu.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_WZ.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_ZZJetsTo2L2Nu.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_ZZJetsTo2L2Q.root");
-    ch->Add("/hadoop/cms/store/user/namin/wz/baby_ZZJetsTo4L.root");
+    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_DYJetsToLL.root");
+    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_TBZToLL.root");
+    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_TTJets.root");
+    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_TTW.root");
+    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_TTZJets.root");
+    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_VVV.root");
+    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_WJetsToLNu.root");
+    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_WZ.root");
+    ch->Add("/home/users/namin/sandbox/condorTest/output/baby_ZZJets.root");
+    // ch->Add("/home/users/namin/sandbox/condorTest/output/baby_ZZJetsTo2L2Nu.root");
+    // ch->Add("/home/users/namin/sandbox/condorTest/output/baby_ZZJetsTo2L2Q.root");
+    // ch->Add("/home/users/namin/sandbox/condorTest/output/baby_ZZJetsTo4L.root");
 
     int nEventsTotal = ch->GetEntries();
     int nEventsSoFar = 0;
@@ -306,14 +310,15 @@ int scan(){
     vector<TH1F*> h1D_njets_vec;
     vector<TH1F*> h1D_ht_vec;
     vector<TH1F*> h1D_met_vec;
+    vector<TH1F*> h1D_met_all_vec;
     vector<TH1F*> h1D_mt_vec;
     vector<TH1F*> h1D_nleps_vec;
     vector<TH1F*> h1D_nleps_good_vec;
     vector<TH1F*> h1D_zmass_vec;
-    vector<TH1F*> h1D_lepeta_all_vec;
+    // vector<TH1F*> h1D_lepeta_all_vec;
     vector<TH1F*> h1D_leppt_vec;
     vector<TH1F*> h1D_leppt_all_vec;
-    vector<TH1F*> h1D_lepeta_vec;
+    // vector<TH1F*> h1D_lepeta_vec;
 
     // File Loop
     int iFile = 0;
@@ -328,36 +333,38 @@ int scan(){
         TString filename(currentFile->GetTitle());
 
 
-        TH1F* h1D_njets_file = new TH1F("njets"+filename, "Njets", 15, 0, 15); 
-        TH1F* h1D_ht_file = new TH1F("ht"+filename, "H_{T};GeV", 100, 0, 600); 
-        TH1F* h1D_met_file = new TH1F("met"+filename, "#slash{E}_{T};GeV", 100, 0, 300); 
-        TH1F* h1D_mt_file = new TH1F("mt"+filename, "M_{T};GeV", 100, 0, 400); 
-        TH1F* h1D_nleps_file = new TH1F("nleps"+filename, "# of leptons (no cuts)", 10, 0, 10); 
-        TH1F* h1D_nleps_good_file = new TH1F("nleps_good"+filename, "# of leptons (jet, quality cuts)", 10, 0, 10); 
-        TH1F* h1D_zmass_file = new TH1F("zmass"+filename, "Z Mass;GeV", 100, 80, 110); 
-        TH1F* h1D_leppt_all_file = new TH1F("leppt_all"+filename, "lepton p_{T} (no cuts);p_{T} [GeV]", 100, 0, 150); 
-        TH1F* h1D_lepeta_all_file = new TH1F("lepeta_all"+filename, "lepton #eta (no cuts)", 100, -3.0, 3.0); 
-        TH1F* h1D_leppt_file = new TH1F("leppt"+filename, "lepton p_{T} after jet, lep quality cuts;p_{T} [GeV]", 100, 0, 150); 
-        TH1F* h1D_lepeta_file = new TH1F("lepeta"+filename, "lepton #eta after jet, lep quality cuts", 100, -3.0, 3.0); 
+        TH1F* h1D_njets_file = new TH1F("njets"+filename, "Njets;;Entries", 15, 0, 15); 
+        TH1F* h1D_ht_file = new TH1F("ht"+filename, "H_{T};GeV;Entries", 20, 0, 600); 
+        TH1F* h1D_met_file = new TH1F("met"+filename, "#slash{E}_{T};GeV;Entries", 20, 0, 300); 
+        TH1F* h1D_met_all_file = new TH1F("met_all"+filename, "#slash{E}_{T} (all);GeV;Entries", 20, 0, 300); 
+        TH1F* h1D_mt_file = new TH1F("mt"+filename, "M_{T};GeV;Entries", 20, 0, 400); 
+        TH1F* h1D_nleps_file = new TH1F("nleps"+filename, "# of leptons (only met cut);;Entries", 10, 0, 10); 
+        TH1F* h1D_nleps_good_file = new TH1F("nleps_good"+filename, "# of leptons (jet, quality cuts);;Entries", 10, 0, 10); 
+        TH1F* h1D_zmass_file = new TH1F("zmass"+filename, "Z Mass;GeV;Entries", 30, 70, 120); 
+        TH1F* h1D_leppt_all_file = new TH1F("leppt_all"+filename, "lepton p_{T} (only met cut);p_{T} [GeV];Entries", 100, 0, 150); 
+        // TH1F* h1D_lepeta_all_file = new TH1F("lepeta_all"+filename, "lepton #eta (only met cut);#eta;Entries", 100, -3.0, 3.0); 
+        TH1F* h1D_leppt_file = new TH1F("leppt"+filename, "lepton p_{T} after jet, lep quality cuts;p_{T} [GeV];Entries", 100, 0, 150); 
+        // TH1F* h1D_lepeta_file = new TH1F("lepeta"+filename, "lepton #eta after jet, lep quality cuts;#eta;Entries", 100, -3.0, 3.0); 
 
         h1D_njets_vec.push_back(h1D_njets_file); 
         h1D_ht_vec.push_back(h1D_ht_file); 
         h1D_met_vec.push_back(h1D_met_file); 
+        h1D_met_all_vec.push_back(h1D_met_all_file); 
         h1D_mt_vec.push_back(h1D_mt_file); 
         h1D_nleps_vec.push_back(h1D_nleps_file);
         h1D_nleps_good_vec.push_back(h1D_nleps_good_file);
         h1D_zmass_vec.push_back(h1D_zmass_file); 
         h1D_leppt_all_vec.push_back(h1D_leppt_all_file);
-        h1D_lepeta_all_vec.push_back(h1D_lepeta_all_file);
+        // h1D_lepeta_all_vec.push_back(h1D_lepeta_all_file);
         h1D_leppt_vec.push_back(h1D_leppt_file); 
-        h1D_lepeta_vec.push_back(h1D_lepeta_file); 
+        // h1D_lepeta_vec.push_back(h1D_lepeta_file); 
 
         // Loop over Events in current file
         unsigned int nEventsTree = tree->GetEntriesFast();
         for( unsigned int event = 0; event < nEventsTree; ++event) {
 
             // XXX
-            //if(event > 300000) break;
+            // if(event > 30000) break;
 
             // Get Event Content
             cms2.GetEntry(event);
@@ -376,44 +383,55 @@ int scan(){
             std::map<int, int> goodToP4MapMu;
             float ht = 0, met = 0;
 
+            // float scale = evt_scale1fb()  * luminosity * 1674.0/1421.1;
             float scale = evt_scale1fb()  * luminosity;
 
+            met = pfmet_type1cor();
+
             h1D_nleps_file->Fill(els_p4().size() + mus_p4().size(), scale);
+            h1D_met_all_file->Fill(met);
+
+            if(met < 30) continue;
 
             // make electron quality cuts
             for(unsigned int iEl = 0; iEl < els_p4().size(); iEl++) {
                 float elPt = els_p4().at(iEl).pt();
                 h1D_leppt_all_file->Fill(elPt, scale);
 
-                h1D_lepeta_all_file->Fill(els_p4().at(iEl).eta(), scale);
+                // h1D_lepeta_all_file->Fill(els_p4().at(iEl).eta(), scale);
 
                 if(!looseEl().at(iEl)) continue;
-                if(els_p4().at(iEl).pt() < 25) continue;
+                if(els_p4().at(iEl).pt() < ptCut) continue;
                 if(fabs(els_p4().at(iEl).eta()) > 2.4) continue;
 
                 h1D_leppt_file->Fill(els_p4().at(iEl).pt(), scale);
-                h1D_lepeta_file->Fill(els_p4().at(iEl).eta(), scale);
+                // h1D_lepeta_file->Fill(els_p4().at(iEl).eta(), scale);
 
-                goodEls.push_back(els_p4().at(iEl));
                 goodToP4MapEl[goodEls.size()] = iEl;
+                goodEls.push_back(els_p4().at(iEl));
             }
             // mirror for muons
             for(unsigned int iMu = 0; iMu < mus_p4().size(); iMu++) {
                 float muPt = mus_p4().at(iMu).pt();
                 h1D_leppt_all_file->Fill(muPt, scale);
 
-                h1D_lepeta_all_file->Fill(mus_p4().at(iMu).eta(), scale);
+                // h1D_lepeta_all_file->Fill(mus_p4().at(iMu).eta(), scale);
 
                 if(!looseMu().at(iMu)) continue;
-                if(mus_p4().at(iMu).pt() < 25) continue;
+                if(mus_p4().at(iMu).pt() < ptCut) continue;
                 if(fabs(mus_p4().at(iMu).eta()) > 2.4) continue;
 
                 h1D_leppt_file->Fill(mus_p4().at(iMu).pt(), scale);
-                h1D_lepeta_file->Fill(mus_p4().at(iMu).eta(), scale);
+                // h1D_lepeta_file->Fill(mus_p4().at(iMu).eta(), scale);
 
-                goodMus.push_back(mus_p4().at(iMu));
                 goodToP4MapMu[goodMus.size()] = iMu;
+                goodMus.push_back(mus_p4().at(iMu));
             }
+
+
+            h1D_nleps_good_file->Fill(goodMus.size() + goodEls.size(), scale);
+            // require that we have 3 good leptons
+            if(goodMus.size() + goodEls.size() != 3) continue;
 
             // select good jets
             for (unsigned int iJet = 0; iJet < pfjets_p4().size(); iJet++){
@@ -440,13 +458,7 @@ int scan(){
                 goodJets.push_back(pfjets_p4().at(iJet));
             }
 
-            met = pfmet_type1cor();
-            if(met < 30) continue;
 
-
-            h1D_nleps_good_file->Fill(goodMus.size() + goodEls.size(), scale);
-            // require that we have 3 good leptons
-            if(goodMus.size() + goodEls.size() != 3) continue;
 
             vector<int> pair = findZPair(goodEls, goodMus);
             vector<LorentzVector> leps;
@@ -497,17 +509,18 @@ int scan(){
 
     std::string common = " --luminosity 19.49 --percentages ";
 
-    drawStacked(h1D_leppt_all_data, h1D_leppt_all_vec, prefix+"h1D_leppt_all.pdf", "--logscale"+common);
-    drawStacked(h1D_njets_data, h1D_njets_vec, prefix+"h1D_njets.pdf", ""+common);
-    drawStacked(h1D_ht_data, h1D_ht_vec,prefix+"h1D_ht.pdf","--logscale"+common);
-    drawStacked(h1D_leppt_data, h1D_leppt_vec,prefix+"h1D_leppt.pdf","--logscale"+common);
-    drawStacked(h1D_nleps_good_data, h1D_nleps_good_vec,prefix+"h1D_nleps_good.pdf","--logscale"+common);
+    drawStacked(h1D_leppt_all_data, h1D_leppt_all_vec, prefix+"h1D_leppt_all.pdf", "--logscale --centerlabel"+common);
+    drawStacked(h1D_njets_data, h1D_njets_vec, prefix+"h1D_njets.pdf", "--centerlabel"+common);
+    drawStacked(h1D_ht_data, h1D_ht_vec,prefix+"h1D_ht.pdf","--logscale --binsize --centerlabel"+common);
+    drawStacked(h1D_leppt_data, h1D_leppt_vec,prefix+"h1D_leppt.pdf","--logscale --centerlabel"+common);
+    drawStacked(h1D_nleps_good_data, h1D_nleps_good_vec,prefix+"h1D_nleps_good.pdf","--logscale --centerlabel"+common);
     drawStacked(h1D_nleps_data, h1D_nleps_vec,prefix+"h1D_nleps.pdf","--logscale"+common);
-    drawStacked(h1D_met_data, h1D_met_vec,prefix+"h1D_met.pdf",""+common);
-    drawStacked(h1D_mt_data, h1D_mt_vec,prefix+"h1D_mt.pdf",""+common);
-    drawStacked(h1D_lepeta_all_data, h1D_lepeta_all_vec,prefix+"h1D_lepeta_all.pdf",""+common);
-    drawStacked(h1D_lepeta_data, h1D_lepeta_vec,prefix+"h1D_lepeta.pdf",""+common);
-    drawStacked(h1D_zmass_data, h1D_zmass_vec,prefix+"h1D_zmass.pdf",""+common);
+    drawStacked(h1D_met_data, h1D_met_vec,prefix+"h1D_met.pdf","--binsize --centerlabel"+common);
+    drawStacked(h1D_met_all_data, h1D_met_all_vec,prefix+"h1D_met_all.pdf","--binsize --centerlabel"+common);
+    drawStacked(h1D_mt_data, h1D_mt_vec,prefix+"h1D_mt.pdf","--binsize --centerlabel"+common);
+    // drawStacked(h1D_lepeta_all_data, h1D_lepeta_all_vec,prefix+"h1D_lepeta_all.pdf"," --centerlabel"+common);
+    // drawStacked(h1D_lepeta_data, h1D_lepeta_vec,prefix+"h1D_lepeta.pdf"," --centerlabel"+common);
+    drawStacked(h1D_zmass_data, h1D_zmass_vec,prefix+"h1D_zmass.pdf","--binsize"+common);
 
 
     // std::string common = " --luminosity 19.49 --percentages";
