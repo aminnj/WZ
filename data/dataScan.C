@@ -230,8 +230,8 @@ int dataScan(){
                 h1D_leppt_file->Fill(els_p4().at(iEl).pt());
                 h1D_lepeta_file->Fill(els_p4().at(iEl).eta());
 
-                goodEls.push_back(els_p4().at(iEl));
                 goodToP4MapEl[goodEls.size()] = iEl;
+                goodEls.push_back(els_p4().at(iEl));
             }
             // mirror for muons
             for(unsigned int iMu = 0; iMu < mus_p4().size(); iMu++) {
@@ -245,8 +245,8 @@ int dataScan(){
                 h1D_leppt_file->Fill(mus_p4().at(iMu).pt());
                 h1D_lepeta_file->Fill(mus_p4().at(iMu).eta());
 
-                goodMus.push_back(mus_p4().at(iMu));
                 goodToP4MapMu[goodMus.size()] = iMu;
+                goodMus.push_back(mus_p4().at(iMu));
             }
 
             // select good jets
