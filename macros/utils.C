@@ -89,10 +89,8 @@ void drawLabel(float x1, float y1, TString s, float size=0.04, int align=13) {
 vector<int> getColors() {
     vector<int> colors;
 
-
-
-    int icol = 1000;
-    TColor* col;
+    // int icol = 1000;
+    // TColor* col;
 
 
     // col = new TColor(icol,0.650980392,0.807843137,0.890196078); colors.push_back(icol); icol++;
@@ -104,7 +102,7 @@ vector<int> getColors() {
     // col = new TColor(icol,0.992156863,0.749019608,0.435294118); colors.push_back(icol); icol++;
     // col = new TColor(icol,1,0.498039216,0); colors.push_back(icol); icol++;
     // col = new TColor(icol,0.792156863,0.698039216,0.839215686); colors.push_back(icol); icol++;
-    
+
     // col = new TColor(icol,0.945,0.404,0.271); colors.push_back(icol); icol++;
     // col = new TColor(icol,1.0,0.776,0.365); colors.push_back(icol); icol++;
     // col = new TColor(icol,0.482,0.784,0.643); colors.push_back(icol); icol++;
@@ -140,6 +138,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
     TString title = hists[0]->GetTitle();
     TString xlabel = hists[0]->GetXaxis()->GetTitle();
     TString ylabel = hists[0]->GetYaxis()->GetTitle();
+    vector<TString> labels;
     bool logScale = false;
     bool percentages = false;
     bool haveData = (data->GetEntries() > 0);
@@ -165,6 +164,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         if(key == "percentages") percentages = true;
         if(key == "centerlabel") centerLabel = true;
         if(key == "luminosity") luminosity = val.Atof();
+        if(key == "label") labels.push_back(val);
 
         if(key == "binsize") {
             float binWidth = hists[0]->GetBinWidth(0);
@@ -263,15 +263,24 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         labelYOffset += labelDY;
     }
 
+    if(labels.size() > 0) {
+        for(int ilabel = 0; ilabel < labels.size(); ilabel++) {
+            drawLabel( labelX,0.89-labelYOffset, labels.at(ilabel) );
+            labelYOffset += labelDY;
+        }
+    }
+
     if(percentages) { 
         float dy = (leg->GetY2()-leg->GetY1())/leg->GetNRows();
         float x1 = leg->GetX1()+0.041;
         float y2 = leg->GetY2()-0.30*dy;
 
-        if(hists.size() > 8) dy *= 1.1;
-        else if(hists.size() > 7) dy *= 1.067;
-        else if(hists.size() > 6) dy *= 1.04;
-        else if(hists.size() > 5) dy *= 1.02;
+        if(haveData) {
+            if(hists.size() > 8) dy *= 1.1;
+            else if(hists.size() > 7) dy *= 1.067;
+            else if(hists.size() > 6) dy *= 1.04;
+            else if(hists.size() > 5) dy *= 1.02;
+        }
 
         for(unsigned int irow = 0; irow < hists.size(); irow++) {
             float percentage = 100.0*hists[irow]->Integral(0,hists[irow]->GetNbinsX()+1)/integral;
