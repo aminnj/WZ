@@ -53,7 +53,7 @@ bool integralCompare(TH1F* h1, TH1F* h2) {
 double maxY(TH1F* data) {
     double maxYval = 0.0;
     for(int ib = 0; ib < data->GetNbinsX(); ib++) {
-        double val = data->GetBinContent(ib) + data->GetBinErrorUp(ib);
+        double val = data->GetBinContent(ib) + data->GetBinError(ib);
         if(val > maxYval) maxYval = val;
     }
     return maxYval;

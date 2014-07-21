@@ -319,6 +319,9 @@ int scan(){
     vector<TH1F*> h1D_leppt_vec;
     vector<TH1F*> h1D_leppt_all_vec;
     // vector<TH1F*> h1D_lepeta_vec;
+    //
+    TH1F* error = new TH1F("error","",1,0,1);
+    error->Sumw2();
 
     // File Loop
     int iFile = 0;
@@ -497,6 +500,7 @@ int scan(){
             h1D_njets_file->Fill(goodJets.size(), scale);
             h1D_ht_file->Fill(ht, scale);
             h1D_met_file->Fill(met, scale);
+            error->Fill(0.0,scale);
 
         }//event loop
 
@@ -504,6 +508,8 @@ int scan(){
 
     std::cout << " nGoodEvents: " << nGoodEvents << " nEventsTotal: " << nEventsTotal << std::endl;
     std::cout << " nGoodEventsWeighted to 19.49 1/fb: " << nGoodEventsWeighted << std::endl;
+
+    std::cout << " error->GetBinContent(1): " << error->GetBinContent(1) << " error->GetBinError(1): " << error->GetBinError(1) << std::endl;
 
     TString prefix("plots/");
 
