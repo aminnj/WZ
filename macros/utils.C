@@ -24,20 +24,77 @@ double deltaR(const LorentzVector& p1, const LorentzVector& p2) {
     return ROOT::Math::VectorUtil::DeltaR(p1,p2);
 }
 
-double deltaPhi(LorentzVector p1, LorentzVector p2) {
-    double dPhi = fabs(p1.Phi() - p2.Phi());
-    return dPhi > M_PI ? dPhi : dPhi - M_PI;
-}
-
-double deltaPhi(LorentzVector p1, float phi2) {
-    double dPhi = fabs(p1.Phi() - phi2);
-    return dPhi > M_PI ? dPhi : dPhi - M_PI;
+double deltaPhi(float phi1, float phi2) {
+    double dPhi = fabs(phi1 - phi2);
+    if(dPhi > M_PI) dPhi -= 2.0*M_PI;
+    if(dPhi <= -M_PI) dPhi += 2.0*M_PI;
+    return fabs(dPhi);
 }
 
 double MT(LorentzVector p1, float met, float metphi) {
-    double dPhi = deltaPhi(p1, metphi);
+    double dPhi = deltaPhi(p1.Phi(), metphi);
     // 43.61 of pdg.lbl.gov/2013/reviews/rpp2012-rev-kinematics.pdf
     return sqrt( 2.0 * p1.Pt() * met * (1.0-cos(dPhi)) );
+}
+
+vector<int> findZPair(std::vector<LorentzVector> goodEls, std::vector<LorentzVector> goodMus) {
+    int nEl = goodEls.size();
+    int nMu = goodMus.size();
+    float ZMass = 91.1876;
+    // 1st elem is el (0) or mu (1), next 2 are the Z lep idxs
+    // 4th is el/mu of W lep, last is W lep idx
+    vector<int> v(5, -1);
+    // Z decays to pair of same flavour leptons, so we can check
+    // electrons and muons separately
+    if(nEl >= 2) {
+        v[0] = 0; // pair must be electrons
+        if(nEl == 2) {
+            v[1] = 0; v[2] = 1; // found the only possible pair
+            v[3] = 1; v[4] = 0; // W lep must be mu 
+            return v;
+        } else if(nEl == 3) { // 3 possible pairs to check now: 0,1 and 0,2 and 1,2
+            int iElZ = -1, jElZ = -1;
+            float minDiffFromZMass = 9999.0;
+            for(int i = 0; i < 3; i++) {       // loop through idx pairs 0,1 0,2 1,2
+                for(int j = i+1; j < 3; j++) { // retain indices with best masses
+                    float mass = (goodEls[i] + goodEls[j]).mass();
+                    if(fabs(mass - ZMass) < minDiffFromZMass) {
+                        iElZ = i; jElZ = j;
+                        minDiffFromZMass = fabs(mass - ZMass);
+                    }
+                }
+            }
+            // now we've found the pair with mass closest to ZMass
+            v[1] = iElZ; v[2] = jElZ; v[3] = 0; // W lep must be el
+            v[4] = (0+1+2) - iElZ - jElZ; // index of W lepton
+            if(v[1] != -1 && v[2] != -1) return v;
+        }
+    } else if(nMu >= 2) {
+        v[0] = 1; // pair must be muons
+        if(nMu == 2) {
+            v[1] = 0; v[2] = 1; // found the only possible pair
+            v[3] = 0; v[4] = 0; // W lep must be el 
+            return v;
+        } else if(nMu == 3) { // 3 possible pairs to check now: 0,1 and 0,2 and 1,2
+            int iMuZ = -1, jMuZ = -1;
+            float minDiffFromZMass = 9999.0;
+            for(int i = 0; i < 3; i++) {       // loop through idx pairs 0,1 0,2 1,2
+                for(int j = i+1; j < 3; j++) { // retain indices with best masses
+                    float mass = (goodMus[i] + goodMus[j]).mass();
+                    if(fabs(mass - ZMass) < minDiffFromZMass) {
+                        iMuZ = i; jMuZ = j;
+                        minDiffFromZMass = fabs(mass - ZMass);
+                    }
+                }
+            }
+            // now we've found the pair with mass closest to ZMass
+            v[1] = iMuZ; v[2] = jMuZ; v[3] = 1; // W lep must be mu
+            v[4] = (0+1+2) - iMuZ - jMuZ; // index of W lepton
+            if(v[1] != -1 && v[2] != -1) return v;
+        }
+    }
+    cout << "shouldn't end up at end of zpair function" << endl;
+    return v;
 }
 
 void drawHist(TH1F* hist, TString filename) {
@@ -57,6 +114,13 @@ double maxY(TH1F* data) {
         if(val > maxYval) maxYval = val;
     }
     return maxYval;
+}
+
+void fill(TH1F* hist, float value, float scale=1.0) {
+    int maximum = hist->GetXaxis()->GetBinCenter(hist->GetNbinsX());
+    if(maximum > value) hist->Fill(value,scale);
+    else hist->Fill(maximum,scale);
+    // hist->Fill(min(hist->GetXaxis()->GetXmax(), value), scale);
 }
 
 void myStyle() {
@@ -143,6 +207,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
     bool percentages = false;
     bool haveData = (data->GetEntries() > 0);
     bool centerLabel = false;
+    bool scaleToData = false;
     // bool haveData = false;
     double luminosity = 0.0;
 
@@ -163,6 +228,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         if(key == "logscale") logScale = true;
         if(key == "percentages") percentages = true;
         if(key == "centerlabel") centerLabel = true;
+        if(key == "scaletodata") scaleToData = true;
         if(key == "luminosity") luminosity = val.Atof();
         if(key == "label") labels.push_back(val);
 
@@ -235,6 +301,18 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         integral += hists[ih]->Integral(0,hists[ih]->GetNbinsX()+1);
     }
 
+    if(haveData && scaleToData) {
+        float scale = 1.0*data->Integral(0,data->GetNbinsX()+1)/integral;
+        for(unsigned int ih = 0; ih < hists.size(); ih++) {
+            if(ih == 0) cout << "scaling mc to data by " << scale << endl;
+            hists[ih]->Scale(scale);
+            //hists[ih]->Scale(2.0);
+            // integral += hists[ih]->Integral(0,hists[ih]->GetNbinsX()+1);
+        }
+        // integral = data->Integral(0,data->GetNbinsX()+1);
+        integral *= scale;
+    }
+
     //set option variables
     stack->SetTitle(title);
     stack->GetXaxis()->SetTitle(xlabel);
@@ -264,7 +342,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
     }
 
     if(labels.size() > 0) {
-        for(int ilabel = 0; ilabel < labels.size(); ilabel++) {
+        for(unsigned int ilabel = 0; ilabel < labels.size(); ilabel++) {
             drawLabel( labelX,0.89-labelYOffset, labels.at(ilabel) );
             labelYOffset += labelDY;
         }

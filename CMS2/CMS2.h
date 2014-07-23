@@ -92,6 +92,9 @@ protected:
 	vector<float> *pfjets_corL1FastL2L3_;
 	TBranch *pfjets_corL1FastL2L3_branch;
 	bool pfjets_corL1FastL2L3_isLoaded;
+	vector<float> *pfjets_combinedSecondaryVertexBJetTag_;
+	TBranch *pfjets_combinedSecondaryVertexBJetTag_branch;
+	bool pfjets_combinedSecondaryVertexBJetTag_isLoaded;
 public: 
 void Init(TTree *tree) {
 	els_p4_branch = 0;
@@ -220,6 +223,11 @@ void Init(TTree *tree) {
 		pfjets_corL1FastL2L3_branch = tree->GetBranch("pfjets_corL1FastL2L3");
 		pfjets_corL1FastL2L3_branch->SetAddress(&pfjets_corL1FastL2L3_);
 	}
+	pfjets_combinedSecondaryVertexBJetTag_branch = 0;
+	if (tree->GetBranch("pfjets_combinedSecondaryVertexBJetTag") != 0) {
+		pfjets_combinedSecondaryVertexBJetTag_branch = tree->GetBranch("pfjets_combinedSecondaryVertexBJetTag");
+		pfjets_combinedSecondaryVertexBJetTag_branch->SetAddress(&pfjets_combinedSecondaryVertexBJetTag_);
+	}
   tree->SetMakeClass(0);
 }
 void GetEntry(unsigned int idx) 
@@ -251,6 +259,7 @@ void GetEntry(unsigned int idx)
 		tightMu_isLoaded = false;
 		passesLoosePFJetID_isLoaded = false;
 		pfjets_corL1FastL2L3_isLoaded = false;
+		pfjets_combinedSecondaryVertexBJetTag_isLoaded = false;
 	}
 
 void LoadAllBranches() 
@@ -281,6 +290,7 @@ void LoadAllBranches()
 	if (tightMu_branch != 0) tightMu();
 	if (passesLoosePFJetID_branch != 0) passesLoosePFJetID();
 	if (pfjets_corL1FastL2L3_branch != 0) pfjets_corL1FastL2L3();
+	if (pfjets_combinedSecondaryVertexBJetTag_branch != 0) pfjets_combinedSecondaryVertexBJetTag();
 }
 
 	float &pfmet()
@@ -608,6 +618,19 @@ void LoadAllBranches()
 		}
 		return *pfjets_corL1FastL2L3_;
 	}
+	vector<float> &pfjets_combinedSecondaryVertexBJetTag()
+	{
+		if (not pfjets_combinedSecondaryVertexBJetTag_isLoaded) {
+			if (pfjets_combinedSecondaryVertexBJetTag_branch != 0) {
+				pfjets_combinedSecondaryVertexBJetTag_branch->GetEntry(index);
+			} else { 
+				printf("branch pfjets_combinedSecondaryVertexBJetTag_branch does not exist!\n");
+				exit(1);
+			}
+			pfjets_combinedSecondaryVertexBJetTag_isLoaded = true;
+		}
+		return *pfjets_combinedSecondaryVertexBJetTag_;
+	}
 
   static void progress( int nEventsTotal, int nEventsChain ){
     int period = 1000;
@@ -661,5 +684,6 @@ namespace tas {
 	vector<bool> &tightMu();
 	vector<bool> &passesLoosePFJetID();
 	vector<float> &pfjets_corL1FastL2L3();
+	vector<float> &pfjets_combinedSecondaryVertexBJetTag();
 }
 #endif

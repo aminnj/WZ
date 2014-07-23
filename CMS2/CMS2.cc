@@ -26,4 +26,5 @@ namespace tas {
 	vector<bool> &tightMu() { return cms2.tightMu(); }
 	vector<bool> &passesLoosePFJetID() { return cms2.passesLoosePFJetID(); }
 	vector<float> &pfjets_corL1FastL2L3() { return cms2.pfjets_corL1FastL2L3(); }
+	vector<float> &pfjets_combinedSecondaryVertexBJetTag() { return cms2.pfjets_combinedSecondaryVertexBJetTag(); }
 }
