@@ -56,3 +56,10 @@ bool is_duplicate (const DorkyEventIdentifier &id) {
   return !ret.second;
 }
 
+void clear_seen() { 
+    // if we run over data multiple times, later runs
+    // get ignored since the already_seen set is never
+    // cleared, so put this before running every time
+    already_seen.clear();
+}
+
