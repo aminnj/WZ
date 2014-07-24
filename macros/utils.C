@@ -192,7 +192,7 @@ vector<int> getColors() {
     return colors;
 }
 
-int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string options = "", vector<string> titles = vector<string>()) {
+int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string options = "", float overrideScale = -1.0, float *getScale=NULL, vector<string> titles = vector<string>()) {
 
     if(hists.size() < 1) return 1;
 
@@ -303,13 +303,14 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
 
     if(haveData && scaleToData) {
         float scale = 1.0*data->Integral(0,data->GetNbinsX()+1)/integral;
+        if(overrideScale > 0) scale = overrideScale;
+        if(getScale != NULL) *getScale = scale; // return scale to user if he wants it
+
+        cout << "scaling mc to data by " << scale << endl;
+
         for(unsigned int ih = 0; ih < hists.size(); ih++) {
-            if(ih == 0) cout << "scaling mc to data by " << scale << endl;
             hists[ih]->Scale(scale);
-            //hists[ih]->Scale(2.0);
-            // integral += hists[ih]->Integral(0,hists[ih]->GetNbinsX()+1);
         }
-        // integral = data->Integral(0,data->GetNbinsX()+1);
         integral *= scale;
     }
 
@@ -419,17 +420,17 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
 
 
 
-        // FIXME
-        float sum = 0.0;
-        int ndof = 0;
-        for(int ib = 0; ib < data->GetNbinsX(); ib++) {
-            if(data->GetBinContent(ib) < 1) continue;
-            float weightedResidual = fabs(mcSum->GetBinContent(ib) - data->GetBinContent(ib)) / data->GetBinError(ib);
-            sum += pow(weightedResidual*weightedResidual, 2);
-            ndof++;
-        }
-        std::cout << "Probability of data, MC agreement: " << 100.0*TMath::Prob(sum/ndof,ndof) << "%" << std::endl;
-        // FIXME
+        // // FIXME
+        // float sum = 0.0;
+        // int ndof = 0;
+        // for(int ib = 0; ib < data->GetNbinsX(); ib++) {
+        //     if(data->GetBinContent(ib) < 1) continue;
+        //     float weightedResidual = fabs(mcSum->GetBinContent(ib) - data->GetBinContent(ib)) / data->GetBinError(ib);
+        //     sum += pow(weightedResidual*weightedResidual, 2);
+        //     ndof++;
+        // }
+        // std::cout << "Probability of data, MC agreement: " << 100.0*TMath::Prob(sum/ndof,ndof) << "%" << std::endl;
+        // // FIXME
 
 
 
