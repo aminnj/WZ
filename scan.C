@@ -1,16 +1,11 @@
 #include "TTreeCache.h"
 #include "TChain.h"
 #include "TCanvas.h"
-#include "TF1.h"
 #include "TH1.h"
 #include "TH1F.h"
-#include "TH2F.h"
-#include "TH2.h"
-#include "TH2D.h"
 #include "THStack.h"
 #include "TLegend.h"
 #include "TString.h"
-#include "TRegexp.h"
 #include "TStyle.h"
 #include "Math/VectorUtil.h"
 #include "TDatabasePDG.h"
@@ -37,7 +32,9 @@ bool jetCompare(JetStruct j1, JetStruct j2) {
     return j1.pt > j2.pt;
 }
 
-int scan(unsigned int njetsCut=0, TString tag=""){
+float scan(unsigned int njetsCut=0, int btagCut=999, TString tag="", float manualScale=-1.0){
+
+    TH1F* h1D_dummy_data = new TH1F("dummy", "dummyhisto", 10, 0, 10); 
 
     TH1F* h1D_njets_data = new TH1F("njets", "", 15, 0, 15); 
     TH1F* h1D_ht_data = new TH1F("ht", "", 20, 0, 600); 
@@ -49,15 +46,24 @@ int scan(unsigned int njetsCut=0, TString tag=""){
     TH1F* h1D_leppt_data = new TH1F("leppt", "", 50, 0, 150); 
     TH1F* h1D_Wleppt_data = new TH1F("Wleppt", "", 30, 0, 150); 
 
+    TH1F* h1D_nbtags_data = new TH1F("nbtags", "", 15, 0, 15); 
+    TH1F* h1D_btagval_data = new TH1F("btagval", "", 20, 0, 1); 
+    TH1F* h1D_ptZ_data = new TH1F("ptZ", "", 25, 0, 400);
+    TH1F* h1D_st_data = new TH1F("st", "", 25, 100, 800);
+    TH1F* h1D_minRLeadingJet_data = new TH1F("minRLeadingJet", "",10,0,5);
+    TH1F* h1D_ptj1_data = new TH1F("ptj1", "", 25, 0, 300);
+    TH1F* h1D_ptj2_data = new TH1F("ptj2", "", 25, 0, 300);
+    TH1F* h1D_massZj1_data = new TH1F("massZj1", "", 25, 100, 600);
+    TH1F* h1D_massZj2_data = new TH1F("massZj2", "", 25, 100, 600);
+    TH1F* h1D_ptjj_data = new TH1F("ptjj", "", 25, 0, 400);
+    TH1F* h1D_massjj_data = new TH1F("massjj", "", 25, 0, 600);
 
-    TH1F* h1D_mtWeemu_data = new TH1F("mtWeem", "eemu W lep M_{T};GeV;Entries", 40, 0, 200); 
-    TH1F* h1D_mtWmumue_data = new TH1F("mtWmme", "mumue W lep M_{T};GeV;Entries", 40, 0, 200); 
-    TH1F* h1D_mtWeee_data = new TH1F("mtWeee", "eee W lep M_{T};GeV;Entries", 40, 0, 200); 
-    TH1F* h1D_mtWmumumu_data = new TH1F("mtWmmm", "mumumu W lep M_{T};GeV;Entries", 40, 0, 200); 
-
-    TH1F* h1D_test_met_data = new TH1F("testmet", "met for e mt < 40;GeV;Entries", 40, 0, 200); 
-    TH1F* h1D_test_dphi_data = new TH1F("testphi", "dphi(met,e) for e mt < 40;GeV;Entries", 40, 0, M_PI); 
-    TH1F* h1D_test_pt_data = new TH1F("testpt", "pt for e mt < 40;GeV;Entries", 40, 0, 200); 
+    TH1F* h1D_mtWeemu_data = new TH1F("mtWeem", "", 40, 0, 200); 
+    TH1F* h1D_mtWmumue_data = new TH1F("mtWmme", "", 40, 0, 200); 
+    TH1F* h1D_mtWeee_data = new TH1F("mtWeee", "", 40, 0, 200); 
+    TH1F* h1D_mtWmumumu_data = new TH1F("mtWmmm", "", 40, 0, 200); 
+    TH1F* h1D_lepetae_data = new TH1F("lepetae", "", 50, -3.0, 3.0); 
+    TH1F* h1D_lepetamu_data = new TH1F("lepetamu", "", 50, -3.0, 3.0); 
 
     float luminosity = 19.407;
     float ptCut = 20;
@@ -66,6 +72,9 @@ int scan(unsigned int njetsCut=0, TString tag=""){
     cout << "njetsCut will exclude evts with njets<" << njetsCut << endl;
     // DATADATA
     {
+
+        clear_seen();
+
         TChain *ch = new TChain("tree");
 
         ch->Add("/home/users/namin/sandbox/condorTest/output/baby_2012ABCD.root");
@@ -92,7 +101,6 @@ int scan(unsigned int njetsCut=0, TString tag=""){
             unsigned int nEventsTree = tree->GetEntriesFast();
             for( unsigned int event = 0; event < nEventsTree; ++event) {
 
-                // XXX
                 // if(event > 30000) break;
 
                 // Get Event Content
@@ -112,9 +120,9 @@ int scan(unsigned int njetsCut=0, TString tag=""){
                     }
                 }
 
-                std::vector<LorentzVector> goodJets;
                 std::vector<LorentzVector> goodEls;
                 std::vector<LorentzVector> goodMus;
+                std::vector<JetStruct> goodJets;
                 std::map<int, int> goodToP4MapEl; // map indices in good{Els,Mus} to {els,mus}_p4 indices
                 std::map<int, int> goodToP4MapMu;
                 float ht = 0, met = 0;
@@ -167,13 +175,18 @@ int scan(unsigned int njetsCut=0, TString tag=""){
                     }
                     if(!isIsolatedFromLepton) continue;
 
-                    ht += pfjets_p4().at(iJet).pt()*pfjets_corL1FastL2L3().at(iJet);
-                    goodJets.push_back(pfjets_p4().at(iJet));
 
+                    ht += pfjets_p4().at(iJet).pt()*pfjets_corL1FastL2L3().at(iJet);
+
+
+                    JetStruct myJet = {};
+                    myJet.jet = pfjets_p4().at(iJet);
+                    myJet.pt = pfjets_p4().at(iJet).pt()*pfjets_corL1FastL2L3().at(iJet);
+                    myJet.idx = iJet;
+
+                    goodJets.push_back(myJet);
                 }
 
-                // XXX
-                if(goodJets.size() < njetsCut) continue;
 
 
                 vector<int> pair = findZPair(goodEls, goodMus);
@@ -194,35 +207,61 @@ int scan(unsigned int njetsCut=0, TString tag=""){
                     if(pair[3] == 0) { // W lep is el
                         if( !tightEl().at(goodToP4MapEl[pair[4]]) ) continue;
                         leps.push_back(goodEls.at(pair[4]));
-                        fill(h1D_Wleppt_data,goodEls.at(pair[4]).pt());
 
-
-                        mtW = MT(goodEls.at(pair[4]), pfmet_type1cor(), metphi());
+                        mtW = MT(els_p4().at(pair[4]), pfmet_type1cor(), metphi());
 
                     } else { // W lep is mu
                         if( !tightMu().at(goodToP4MapMu[pair[4]]) ) continue;
                         leps.push_back(goodMus.at(pair[4]));
-                        fill(h1D_Wleppt_data,goodMus.at(pair[4]).pt());
-
 
                         mtW = MT(goodMus.at(pair[4]), pfmet_type1cor(), metphi());
+
                     }
                 } else {
                     cout << "shouldn't end up with pair[i] == -1" << endl;
                 }
 
+
+                // XXX
                 if(abs(mass - 91.2) > zmassCut) continue;
+                if(goodJets.size() < njetsCut) continue;
+
+                int nbtags = 0;
+                float minRLeadingJet = 9999.0;
+                std::sort(goodJets.begin(), goodJets.end(), jetCompare); // sort jets in descending pt
+                for(unsigned int iJet = 0; iJet < goodJets.size(); iJet++) {
+
+                    float dR = deltaR(goodJets[iJet].jet, goodJets[0].jet);
+                    if(iJet != 0 && dR < minRLeadingJet) minRLeadingJet = dR;
+
+                    // float looseB = 0.244, mediumB = 0.679, tightB = 0.898;
+                    float btagval = pfjets_combinedSecondaryVertexBJetTag().at(goodJets[iJet].idx);
+                    h1D_btagval_data->Fill(btagval);
+                    // fill(h1D_btagval_data, btagval);
+
+                    if(btagval > 0.75) {
+                        nbtags++;
+                    }
+                }
+
+                if(nbtags >= btagCut) continue; // FIXME
+
+
+                h1D_dummy_data->Fill(5.0);
 
 
                 // We are now in the region of interest
 
+
                 for(unsigned int iMu = 0; iMu < goodMus.size(); iMu++) {
                     fill(h1D_leppt_data,goodMus.at(iMu).pt());
                     h1D_lepeta_data->Fill(goodMus.at(iMu).eta());
+                    h1D_lepetamu_data->Fill(goodMus.at(iMu).eta());
                 }
                 for(unsigned int iEl = 0; iEl < goodEls.size(); iEl++) {
                     fill(h1D_leppt_data,goodEls.at(iEl).pt());
                     h1D_lepeta_data->Fill(goodEls.at(iEl).eta());
+                    h1D_lepetae_data->Fill(goodEls.at(iEl).eta());
                 }
 
                 // FIXME
@@ -234,14 +273,6 @@ int scan(unsigned int njetsCut=0, TString tag=""){
                     mtW = MT(goodMus[0], pfmet_type1cor(), metphi());
                     fill(h1D_mtWeemu_data, mtW);
 
-                    if(mtW < 40) { // XXX XXX XXX
-                        fill(h1D_test_met_data, pfmet_type1cor());
-                        float dphi = deltaPhi(metphi(),goodMus.at(0).phi());
-                        fill(h1D_test_dphi_data, dphi);
-                        fill(h1D_test_pt_data, goodMus.at(0).pt());
-
-                    }
-
                 } else { 
                     if(goodMus.size() == 3) { //mumumu
                         fill(h1D_mtWmumumu_data, mtW);
@@ -251,15 +282,43 @@ int scan(unsigned int njetsCut=0, TString tag=""){
                 }
 
                 double mt = MT(leps[0]+leps[1]+leps[2], pfmet_type1cor(), metphi());
+                float ptZ = (leps[0]+leps[1]).pt();
+                float st = ht + leps[0].pt() + leps[1].pt() + leps[2].pt() + pfmet_type1cor();
+
+                fill(h1D_ptZ_data, ptZ);
+                fill(h1D_Wleppt_data,leps[2].pt());
+                if(minRLeadingJet < 9000) fill(h1D_minRLeadingJet_data, minRLeadingJet);
+                fill(h1D_st_data, st);
                 fill(h1D_mt_data,mt);
-                if(mtW != -1)
-                    fill(h1D_mtW_data, mtW);
+                fill(h1D_mtW_data, mtW);
                 fill(h1D_zmass_data,mass); 
                 fill(h1D_njets_data,goodJets.size());
                 fill(h1D_ht_data,ht);
                 fill(h1D_met_data,met);
+                fill(h1D_nbtags_data, nbtags);
 
                 nGoodEvents++;
+
+                if(goodJets.size() < 1) continue;
+
+                float ptj1 = goodJets[0].pt;
+                float massZj1 = (goodJets[0].jet + leps[0]+leps[1]).mass();
+
+                fill(h1D_ptj1_data, ptj1);
+                fill(h1D_massZj1_data, massZj1);
+
+                if(goodJets.size() < 2) continue;
+
+                float ptjj = (goodJets[0].jet + goodJets[1].jet).pt();
+                float massjj = (goodJets[0].jet + goodJets[1].jet).mass();
+                float ptj2 = goodJets[1].pt;
+                float massZj2 = (goodJets[1].jet + leps[0]+leps[1]).mass();
+
+                fill(h1D_ptjj_data, ptjj);
+                fill(h1D_massjj_data, massjj);
+                fill(h1D_ptj2_data, ptj2);
+                fill(h1D_massZj2_data, massZj2);
+
 
             }//event loop
 
@@ -297,6 +356,8 @@ int scan(unsigned int njetsCut=0, TString tag=""){
     TIter fileIter(listOfFiles);
 
 
+    vector<TH1F*> h1D_dummy_vec;
+
     vector<TH1F*> h1D_njets_vec;
     vector<TH1F*> h1D_ht_vec;
     vector<TH1F*> h1D_met_vec;
@@ -328,10 +389,6 @@ int scan(unsigned int njetsCut=0, TString tag=""){
     vector<TH1F*> h1D_lepetae_vec;
     vector<TH1F*> h1D_lepetamu_vec;
 
-    vector<TH1F*> h1D_test_met_vec;
-    vector<TH1F*> h1D_test_dphi_vec;
-    vector<TH1F*> h1D_test_pt_vec;
-
     TH1F* error = new TH1F("error","",1,0,1);
     error->Sumw2();
 
@@ -348,6 +405,8 @@ int scan(unsigned int njetsCut=0, TString tag=""){
         TString filename(currentFile->GetTitle());
 
 
+        TH1F* h1D_dummy_file = new TH1F("dummy"+filename, "dummyhisto", 10, 0, 10); 
+
         TH1F* h1D_njets_file = new TH1F("njets"+filename, "Njets;;Entries", 15, 0, 15); 
         TH1F* h1D_ht_file = new TH1F("ht"+filename, "H_{T};GeV;Entries", 20, 0, 600); 
         TH1F* h1D_met_file = new TH1F("met"+filename, "#slash{E}_{T};GeV;Entries", 20, 0, 300); 
@@ -360,26 +419,24 @@ int scan(unsigned int njetsCut=0, TString tag=""){
 
         TH1F* h1D_nbtags_file = new TH1F("nbtags"+filename, "N btagged jets;;Entries", 15, 0, 15); 
         TH1F* h1D_btagval_file = new TH1F("btagval"+filename, "Value of csv bjet tag;;Entries", 20, 0, 1); 
-        TH1F* h1D_ptZ_file = new TH1F("ptZ"+filename, "Z p_{T};[GeV];Entries", 50, 0, 500);
-        TH1F* h1D_st_file = new TH1F("st"+filename, "S_{T}=H_{T}+p_{T}(leps)+#slash{E}_{T};GeV;Entries", 50, 100, 600);
-        TH1F* h1D_minRLeadingJet_file = new TH1F("minRLeadingJet"+filename, "Minimum dR between jet 1 and another jet",20,0,5);
-        TH1F* h1D_ptj1_file = new TH1F("ptj1"+filename, "j1 p_{T};[GeV];Entries", 50, 0, 300);
-        TH1F* h1D_ptj2_file = new TH1F("ptj2"+filename, "j2 p_{T};[GeV];Entries", 50, 0, 300);
-        TH1F* h1D_massZj1_file = new TH1F("massZj1"+filename, "Zj1 mass;[GeV];Entries", 50, 100, 600);
-        TH1F* h1D_massZj2_file = new TH1F("massZj2"+filename, "Zj2 mass;[GeV];Entries", 50, 100, 600);
-        TH1F* h1D_ptjj_file = new TH1F("ptjj"+filename, "j1j2 p_{T};[GeV];Entries", 50, 0, 400);
-        TH1F* h1D_massjj_file = new TH1F("massjj"+filename, "j1j2 mass;[GeV];Entries", 50, 0, 600);
+        TH1F* h1D_ptZ_file = new TH1F("ptZ"+filename, "Z p_{T};[GeV];Entries", 25, 0, 400);
+        TH1F* h1D_st_file = new TH1F("st"+filename, "S_{T}=H_{T}+#Sigma p_{T,leps}+#slash{E}_{T};S_{T} [GeV];Entries", 25, 100, 800);
+        TH1F* h1D_minRLeadingJet_file = new TH1F("minRLeadingJet"+filename, "Minimum dR between jet 1 and another jet",10,0,5);
+        TH1F* h1D_ptj1_file = new TH1F("ptj1"+filename, "j1 p_{T};[GeV];Entries", 25, 0, 300);
+        TH1F* h1D_ptj2_file = new TH1F("ptj2"+filename, "j2 p_{T};[GeV];Entries", 25, 0, 300);
+        TH1F* h1D_massZj1_file = new TH1F("massZj1"+filename, "Zj1 mass;[GeV];Entries", 25, 100, 600);
+        TH1F* h1D_massZj2_file = new TH1F("massZj2"+filename, "Zj2 mass;[GeV];Entries", 25, 100, 600);
+        TH1F* h1D_ptjj_file = new TH1F("ptjj"+filename, "j1j2 p_{T};[GeV];Entries", 25, 0, 400);
+        TH1F* h1D_massjj_file = new TH1F("massjj"+filename, "j1j2 mass;[GeV];Entries", 25, 0, 600);
 
-        TH1F* h1D_mtWeemu_file = new TH1F("mtWeem"+filename, "eemu W lep M_{T};GeV;Entries", 40, 0, 200); 
-        TH1F* h1D_mtWmumue_file = new TH1F("mtWmme"+filename, "mumue W lep M_{T};GeV;Entries", 40, 0, 200); 
+        TH1F* h1D_mtWeemu_file = new TH1F("mtWeem"+filename, "ee#mu W lep M_{T};GeV;Entries", 40, 0, 200); 
+        TH1F* h1D_mtWmumue_file = new TH1F("mtWmme"+filename, "#mu#mue W lep M_{T};GeV;Entries", 40, 0, 200); 
         TH1F* h1D_mtWeee_file = new TH1F("mtWeee"+filename, "eee W lep M_{T};GeV;Entries", 40, 0, 200); 
-        TH1F* h1D_mtWmumumu_file = new TH1F("mtWmmm"+filename, "mumumu W lep M_{T};GeV;Entries", 40, 0, 200); 
+        TH1F* h1D_mtWmumumu_file = new TH1F("mtWmmm"+filename, "#mu#mu#mu W lep M_{T};GeV;Entries", 40, 0, 200); 
         TH1F* h1D_lepetae_file = new TH1F("lepetae"+filename, "e #eta;#eta;Entries", 50, -3.0, 3.0); 
-        TH1F* h1D_lepetamu_file = new TH1F("lepetamu"+filename, "mu #eta;#eta;Entries", 50, -3.0, 3.0); 
+        TH1F* h1D_lepetamu_file = new TH1F("lepetamu"+filename, "#mu #eta;#eta;Entries", 50, -3.0, 3.0); 
 
-        TH1F* h1D_test_met_file = new TH1F("testmet"+filename, "met for e mt < 40;GeV;Entries", 40, 0, 200); 
-        TH1F* h1D_test_dphi_file = new TH1F("testphi"+filename, "dphi(met,e) for e mt < 40;GeV;Entries", 40, 0, M_PI); 
-        TH1F* h1D_test_pt_file = new TH1F("testpt"+filename, "pt for e mt < 40;GeV;Entries", 40, 0, 200); 
+        h1D_dummy_vec.push_back(h1D_dummy_file); 
 
         h1D_njets_vec.push_back(h1D_njets_file); 
         h1D_ht_vec.push_back(h1D_ht_file); 
@@ -410,15 +467,10 @@ int scan(unsigned int njetsCut=0, TString tag=""){
         h1D_lepetae_vec.push_back(h1D_lepetae_file);
         h1D_lepetamu_vec.push_back(h1D_lepetamu_file);
 
-        h1D_test_met_vec.push_back(h1D_test_met_file);
-        h1D_test_dphi_vec.push_back(h1D_test_dphi_file);
-        h1D_test_pt_vec.push_back(h1D_test_pt_file);
-
         // Loop over Events in current file
         unsigned int nEventsTree = tree->GetEntriesFast();
         for( unsigned int event = 0; event < nEventsTree; ++event) {
 
-            // XXX
             // if(event > 30000) break;
 
             // Get Event Content
@@ -501,8 +553,6 @@ int scan(unsigned int njetsCut=0, TString tag=""){
             }
 
 
-            // XXX
-            if(goodJets.size() < njetsCut) continue;
 
             vector<int> pair = findZPair(goodEls, goodMus);
             vector<LorentzVector> leps;
@@ -522,14 +572,12 @@ int scan(unsigned int njetsCut=0, TString tag=""){
                 if(pair[3] == 0) { // W lep is el
                     if( !tightEl().at(goodToP4MapEl[pair[4]]) ) continue;
                     leps.push_back(goodEls.at(pair[4]));
-                    fill(h1D_Wleppt_file,goodEls.at(pair[4]).pt(), scale);
 
                     mtW = MT(els_p4().at(pair[4]), pfmet_type1cor(), metphi());
 
                 } else { // W lep is mu
                     if( !tightMu().at(goodToP4MapMu[pair[4]]) ) continue;
                     leps.push_back(goodMus.at(pair[4]));
-                    fill(h1D_Wleppt_file,goodMus.at(pair[4]).pt(), scale);
 
                     mtW = MT(goodMus.at(pair[4]), pfmet_type1cor(), metphi());
 
@@ -538,7 +586,34 @@ int scan(unsigned int njetsCut=0, TString tag=""){
                 cout << "shouldn't end up with pair[i] == -1" << endl;
             }
 
+
+            // XXX
             if(abs(mass - 91.2) > zmassCut) continue;
+            if(goodJets.size() < njetsCut) continue;
+
+
+            int nbtags = 0;
+            float minRLeadingJet = 9999.0;
+            std::sort(goodJets.begin(), goodJets.end(), jetCompare); // sort jets in descending pt
+            for(unsigned int iJet = 0; iJet < goodJets.size(); iJet++) {
+
+                float dR = deltaR(goodJets[iJet].jet, goodJets[0].jet);
+                if(iJet != 0 && dR < minRLeadingJet) minRLeadingJet = dR;
+
+                // float looseB = 0.244, mediumB = 0.679, tightB = 0.898;
+                float btagval = pfjets_combinedSecondaryVertexBJetTag().at(goodJets[iJet].idx);
+                h1D_btagval_file->Fill(btagval, scale);
+                // fill(h1D_btagval_file, btagval, scale);
+
+                if(btagval > 0.75) {
+                    nbtags++;
+                }
+            }
+
+            if(nbtags >= btagCut) continue; // FIXME
+
+
+            h1D_dummy_file->Fill(5.0,scale);
 
             // We are now in the region of interest
 
@@ -554,27 +629,6 @@ int scan(unsigned int njetsCut=0, TString tag=""){
                 h1D_lepetae_file->Fill(goodEls.at(iEl).eta(), scale);
             }
 
-            int nbtags = 0;
-            float minRLeadingJet = 9999.0;
-            std::sort(goodJets.begin(), goodJets.end(), jetCompare); // sort jets in descending pt
-            for(unsigned int iJet = 0; iJet < goodJets.size(); iJet++) {
-
-                float dR = deltaR(goodJets[iJet].jet, goodJets[0].jet);
-                if(iJet != 0 && dR < minRLeadingJet) minRLeadingJet = dR;
-
-                float looseB = 0.244, mediumB = 0.679, tightB = 0.898;
-                float btagval = pfjets_combinedSecondaryVertexBJetTag().at(goodJets[iJet].idx);
-                h1D_btagval_file->Fill(btagval, scale);
-                // fill(h1D_btagval_file, btagval, scale);
-
-                if(btagval > tightB) {
-                    nbtags++;
-                }
-            }
-
-            if(nbtags >= 1) continue; // FIXME
-
-
             // FIXME
             if(goodMus.size() == 2 && goodEls.size() == 1) { // mumue
                 mtW = MT(goodEls[0], pfmet_type1cor(), metphi());
@@ -583,14 +637,6 @@ int scan(unsigned int njetsCut=0, TString tag=""){
             } else if(goodMus.size() == 1 && goodEls.size() == 2) { //eemu
                 mtW = MT(goodMus[0], pfmet_type1cor(), metphi());
                 fill(h1D_mtWeemu_file, mtW, scale);
-
-                if(mtW < 40) { // XXX XXX XXX
-                    fill(h1D_test_met_file, pfmet_type1cor(), scale);
-                    float dphi = deltaPhi(metphi(),goodMus.at(0).phi());
-                    fill(h1D_test_dphi_file, dphi, scale);
-                    fill(h1D_test_pt_file, goodMus.at(0).pt(), scale);
-
-                }
 
             } else { 
                 if(goodMus.size() == 3) { //mumumu
@@ -603,8 +649,9 @@ int scan(unsigned int njetsCut=0, TString tag=""){
             double mt = MT(leps[0]+leps[1]+leps[2], pfmet_type1cor(), metphi());
             float ptZ = (leps[0]+leps[1]).pt();
             float st = ht + leps[0].pt() + leps[1].pt() + leps[2].pt() + pfmet_type1cor();
-            
+
             fill(h1D_ptZ_file, ptZ, scale);
+            fill(h1D_Wleppt_file,leps[2].pt(), scale);
             if(minRLeadingJet < 9000) fill(h1D_minRLeadingJet_file, minRLeadingJet, scale);
             fill(h1D_st_file, st, scale);
             fill(h1D_mt_file,mt, scale);
@@ -653,43 +700,41 @@ int scan(unsigned int njetsCut=0, TString tag=""){
     prefix += "/";
 
     stringstream ss; ss << njetsCut;
-    std::string common = " --luminosity 19.4 --percentages --scaletodata --label njets>="+ss.str();
+    std::string common = " --luminosity 19.4 --percentages --scaletodata --label njets #geq "+ss.str();
     // std::string common = " --luminosity 19.4 --percentages --label njets>="+ss.str();
 
-    drawStacked(h1D_njets_data, h1D_njets_vec, prefix+"h1D_njets.pdf", "--centerlabel"+common);
-    drawStacked(h1D_ht_data, h1D_ht_vec,prefix+"h1D_ht.pdf","--logscale --binsize --centerlabel"+common);
-    drawStacked(h1D_leppt_data, h1D_leppt_vec,prefix+"h1D_leppt.pdf","--logscale --centerlabel"+common);
-    drawStacked(h1D_Wleppt_data, h1D_Wleppt_vec,prefix+"h1D_Wleppt.pdf","--logscale --centerlabel"+common);
-    drawStacked(h1D_met_data, h1D_met_vec,prefix+"h1D_met.pdf","--binsize --centerlabel"+common);
-    drawStacked(h1D_mt_data, h1D_mt_vec,prefix+"h1D_mt.pdf","--binsize --centerlabel"+common);
-    drawStacked(h1D_mtW_data, h1D_mtW_vec,prefix+"h1D_mtW.pdf","--binsize "+common);
-    drawStacked(h1D_lepeta_data, h1D_lepeta_vec,prefix+"h1D_lepeta.pdf",""+common);
-    drawStacked(h1D_zmass_data, h1D_zmass_vec,prefix+"h1D_zmass.pdf","--binsize"+common);
+    float mcScale = -1.0;
+    drawStacked(h1D_dummy_data, h1D_dummy_vec,prefix+"h1D_dummy.pdf",""+common, -1.0, &mcScale);
+    
+    drawStacked(h1D_njets_data, h1D_njets_vec, prefix+"h1D_njets.pdf", "--centerlabel"+common, manualScale);
+    drawStacked(h1D_ht_data, h1D_ht_vec,prefix+"h1D_ht.pdf","--logscale --binsize --centerlabel"+common, manualScale);
+    drawStacked(h1D_leppt_data, h1D_leppt_vec,prefix+"h1D_leppt.pdf","--logscale --centerlabel"+common, manualScale);
+    drawStacked(h1D_Wleppt_data, h1D_Wleppt_vec,prefix+"h1D_Wleppt.pdf","--logscale --centerlabel"+common, manualScale);
+    drawStacked(h1D_met_data, h1D_met_vec,prefix+"h1D_met.pdf","--binsize --centerlabel"+common, manualScale);
+    drawStacked(h1D_mt_data, h1D_mt_vec,prefix+"h1D_mt.pdf","--binsize --centerlabel"+common, manualScale);
+    drawStacked(h1D_mtW_data, h1D_mtW_vec,prefix+"h1D_mtW.pdf","--binsize "+common, manualScale);
+    drawStacked(h1D_lepeta_data, h1D_lepeta_vec,prefix+"h1D_lepeta.pdf",""+common, manualScale);
+    drawStacked(h1D_zmass_data, h1D_zmass_vec,prefix+"h1D_zmass.pdf","--binsize"+common, manualScale);
 
-    TH1F* dog = new TH1F("dog","",1,0,1);
-    drawStacked(h1D_mtWeemu_data, h1D_mtWeemu_vec,prefix+"h1D_mtWeemu.pdf","--binsize "+common);
-    drawStacked(h1D_mtWmumue_data, h1D_mtWmumue_vec,prefix+"h1D_mtWmumue.pdf","--binsize "+common);
-    drawStacked(h1D_mtWmumumu_data, h1D_mtWmumumu_vec,prefix+"h1D_mtWmumumu.pdf","--binsize "+common);
-    drawStacked(h1D_mtWeee_data, h1D_mtWeee_vec,prefix+"h1D_mtWeee.pdf","--binsize "+common);
-    drawStacked(dog, h1D_lepetae_vec,prefix+"h1D_lepetae.pdf",""+common);
-    drawStacked(dog, h1D_lepetamu_vec,prefix+"h1D_lepetamu.pdf",""+common);
+    drawStacked(h1D_mtWeemu_data, h1D_mtWeemu_vec,prefix+"h1D_mtWeemu.pdf","--binsize "+common, manualScale);
+    drawStacked(h1D_mtWmumue_data, h1D_mtWmumue_vec,prefix+"h1D_mtWmumue.pdf","--binsize "+common, manualScale);
+    drawStacked(h1D_mtWmumumu_data, h1D_mtWmumumu_vec,prefix+"h1D_mtWmumumu.pdf","--binsize "+common, manualScale);
+    drawStacked(h1D_mtWeee_data, h1D_mtWeee_vec,prefix+"h1D_mtWeee.pdf","--binsize "+common, manualScale);
+    drawStacked(h1D_lepetae_data, h1D_lepetae_vec,prefix+"h1D_lepetae.pdf",""+common, manualScale);
+    drawStacked(h1D_lepetamu_data, h1D_lepetamu_vec,prefix+"h1D_lepetamu.pdf",""+common, manualScale);
 
-    drawStacked(h1D_test_met_data, h1D_test_met_vec,prefix+"h1D_test_met.pdf","--binsize "+common);
-    drawStacked(h1D_test_dphi_data, h1D_test_dphi_vec,prefix+"h1D_test_dphi.pdf","--binsize "+common);
-    drawStacked(h1D_test_pt_data, h1D_test_pt_vec,prefix+"h1D_test_pt.pdf","--binsize "+common);
+    drawStacked(h1D_btagval_data, h1D_btagval_vec, prefix+"h1D_btagval.pdf", "--centerlabel "+common, manualScale);
+    drawStacked(h1D_nbtags_data, h1D_nbtags_vec, prefix+"h1D_nbtags.pdf", "--centerlabel --logscale"+common, manualScale);
+    
+    drawStacked(h1D_ptZ_data, h1D_ptZ_vec, prefix+"h1D_ptZ.pdf","--centerlabel "+common, manualScale);
+    drawStacked(h1D_st_data, h1D_st_vec, prefix+"h1D_st.pdf","--centerlabel "+common, manualScale);
+    drawStacked(h1D_minRLeadingJet_data, h1D_minRLeadingJet_vec, prefix+"h1D_minRLeadingJet.pdf","--centerlabel "+common, manualScale);
+    drawStacked(h1D_ptj1_data, h1D_ptj1_vec, prefix+"h1D_ptj1.pdf","--centerlabel "+common, manualScale);
+    drawStacked(h1D_ptj2_data, h1D_ptj2_vec, prefix+"h1D_ptj2.pdf","--centerlabel "+common, manualScale);
+    drawStacked(h1D_massZj1_data, h1D_massZj1_vec, prefix+"h1D_massZj1.pdf","--centerlabel "+common, manualScale);
+    drawStacked(h1D_massZj2_data, h1D_massZj2_vec, prefix+"h1D_massZj2.pdf","--centerlabel "+common, manualScale);
+    drawStacked(h1D_ptjj_data, h1D_ptjj_vec, prefix+"h1D_ptjj.pdf","--centerlabel "+common, manualScale);
+    drawStacked(h1D_massjj_data, h1D_massjj_vec, prefix+"h1D_massjj.pdf","--centerlabel "+common, manualScale);
 
-    drawStacked(dog, h1D_btagval_vec, prefix+"h1D_btagval.pdf", "--centerlabel "+common);
-    drawStacked(dog, h1D_nbtags_vec, prefix+"h1D_nbtags.pdf", "--centerlabel --logscale"+common);
-
-    drawStacked(dog, h1D_ptZ_vec, prefix+"h1D_ptZ.pdf","--centerlabel "+common);
-    drawStacked(dog, h1D_st_vec, prefix+"h1D_st.pdf","--centerlabel "+common);
-    drawStacked(dog, h1D_minRLeadingJet_vec, prefix+"h1D_minRLeadingJet.pdf","--centerlabel "+common);
-    drawStacked(dog, h1D_ptj1_vec, prefix+"h1D_ptj1.pdf","--centerlabel "+common);
-    drawStacked(dog, h1D_ptj2_vec, prefix+"h1D_ptj2.pdf","--centerlabel "+common);
-    drawStacked(dog, h1D_massZj1_vec, prefix+"h1D_massZj1.pdf","--centerlabel "+common);
-    drawStacked(dog, h1D_massZj2_vec, prefix+"h1D_massZj2.pdf","--centerlabel "+common);
-    drawStacked(dog, h1D_ptjj_vec, prefix+"h1D_ptjj.pdf","--centerlabel "+common);
-    drawStacked(dog, h1D_massjj_vec, prefix+"h1D_massjj.pdf","--centerlabel "+common);
-
-    return 0;
+    return mcScale;
 }
