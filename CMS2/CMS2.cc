@@ -10,6 +10,7 @@ namespace tas {
 	unsigned int &evt_event() { return cms2.evt_event(); }
 	unsigned int &evt_lumiBlock() { return cms2.evt_lumiBlock(); }
 	unsigned int &evt_run() { return cms2.evt_run(); }
+	unsigned int &evt_nvtxs() { return cms2.evt_nvtxs(); }
 	bool &dielectronTrigger() { return cms2.dielectronTrigger(); }
 	bool &dimuonTrigger() { return cms2.dimuonTrigger(); }
 	bool &electronmuonTrigger() { return cms2.electronmuonTrigger(); }

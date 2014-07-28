@@ -25,9 +25,9 @@ double deltaR(const LorentzVector& p1, const LorentzVector& p2) {
 }
 
 double deltaPhi(float phi1, float phi2) {
-    double dPhi = fabs(phi1 - phi2);
-    if(dPhi > M_PI) dPhi -= 2.0*M_PI;
-    if(dPhi <= -M_PI) dPhi += 2.0*M_PI;
+    double dPhi = phi1 - phi2;
+    while(dPhi > M_PI) dPhi -= 2.0*M_PI;
+    while(dPhi <= -M_PI) dPhi += 2.0*M_PI;
     return fabs(dPhi);
 }
 
@@ -117,10 +117,8 @@ double maxY(TH1F* data) {
 }
 
 void fill(TH1F* hist, float value, float scale=1.0) {
-    int maximum = hist->GetXaxis()->GetBinCenter(hist->GetNbinsX());
-    if(maximum > value) hist->Fill(value,scale);
-    else hist->Fill(maximum,scale);
-    // hist->Fill(min(hist->GetXaxis()->GetXmax(), value), scale);
+    float maximum = hist->GetXaxis()->GetBinCenter(hist->GetNbinsX());
+    hist->Fill(min(maximum,value),scale);
 }
 
 void myStyle() {
@@ -192,7 +190,7 @@ vector<int> getColors() {
     return colors;
 }
 
-int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string options = "", float overrideScale = -1.0, float *getScale=NULL, vector<string> titles = vector<string>()) {
+int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString options = "", vector<string> titles = vector<string>()) {
 
     if(hists.size() < 1) return 1;
 
@@ -211,9 +209,9 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
     // bool haveData = false;
     double luminosity = 0.0;
 
-    TString s(options);
+    // TString s(options);
     TPMERegexp re("--"), reSpace(" ");
-    re.Split(s);
+    re.Split(options);
     for(int im = 0; im < re.NMatches(); im++) {
         TString param = re[im].Strip(TString::kBoth);
         if(param.Length() < 1) continue;
@@ -274,6 +272,11 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         }
     }
 
+    // attach colors to histos so scheme is consistent
+    for(unsigned int ih = 0; ih < hists.size(); ih++) {
+        if(ih < colors.size()) hists[ih]->SetFillColor(colors[ih]);
+    }
+
     // bigger histograms on top for log scale, but smaller for linear scale
     if(logScale) std::sort(hists.begin(), hists.end(), integralCompare);
     else std::sort(hists.rbegin(), hists.rend(), integralCompare);
@@ -287,8 +290,8 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
         cleanName(re1) = "";
         cleanName(re2) = "";
         // fill colors: http://root.cern.ch/root/html/TAttFill.html
-        if(ih < colors.size())
-            hists[ih]->SetFillColor(colors[ih]);
+        // if(ih < colors.size())
+            // hists[ih]->SetFillColor(colors[ih]);
 
         hists[ih]->SetLineColor(kBlack);
 
@@ -303,8 +306,8 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, std::string 
 
     if(haveData && scaleToData) {
         float scale = 1.0*data->Integral(0,data->GetNbinsX()+1)/integral;
-        if(overrideScale > 0) scale = overrideScale;
-        if(getScale != NULL) *getScale = scale; // return scale to user if he wants it
+        // if(overrideScale > 0) scale = overrideScale;
+        // if(getScale != NULL) *getScale = scale; // return scale to user if he wants it
 
         cout << "scaling mc to data by " << scale << endl;
 

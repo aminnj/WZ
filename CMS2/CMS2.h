@@ -44,6 +44,9 @@ protected:
 	unsigned int	evt_run_;
 	TBranch *evt_run_branch;
 	bool evt_run_isLoaded;
+	unsigned int	evt_nvtxs_;
+	TBranch *evt_nvtxs_branch;
+	bool evt_nvtxs_isLoaded;
 	bool	dielectronTrigger_;
 	TBranch *dielectronTrigger_branch;
 	bool dielectronTrigger_isLoaded;
@@ -168,6 +171,11 @@ void Init(TTree *tree) {
 		evt_run_branch = tree->GetBranch("evt_run");
 		evt_run_branch->SetAddress(&evt_run_);
 	}
+	evt_nvtxs_branch = 0;
+	if (tree->GetBranch("evt_nvtxs") != 0) {
+		evt_nvtxs_branch = tree->GetBranch("evt_nvtxs");
+		evt_nvtxs_branch->SetAddress(&evt_nvtxs_);
+	}
 	dielectronTrigger_branch = 0;
 	if (tree->GetBranch("dielectronTrigger") != 0) {
 		dielectronTrigger_branch = tree->GetBranch("dielectronTrigger");
@@ -243,6 +251,7 @@ void GetEntry(unsigned int idx)
 		evt_event_isLoaded = false;
 		evt_lumiBlock_isLoaded = false;
 		evt_run_isLoaded = false;
+		evt_nvtxs_isLoaded = false;
 		dielectronTrigger_isLoaded = false;
 		dimuonTrigger_isLoaded = false;
 		electronmuonTrigger_isLoaded = false;
@@ -274,6 +283,7 @@ void LoadAllBranches()
 	if (evt_event_branch != 0) evt_event();
 	if (evt_lumiBlock_branch != 0) evt_lumiBlock();
 	if (evt_run_branch != 0) evt_run();
+	if (evt_nvtxs_branch != 0) evt_nvtxs();
 	if (dielectronTrigger_branch != 0) dielectronTrigger();
 	if (dimuonTrigger_branch != 0) dimuonTrigger();
 	if (electronmuonTrigger_branch != 0) electronmuonTrigger();
@@ -409,6 +419,19 @@ void LoadAllBranches()
 			evt_run_isLoaded = true;
 		}
 		return evt_run_;
+	}
+	unsigned int &evt_nvtxs()
+	{
+		if (not evt_nvtxs_isLoaded) {
+			if (evt_nvtxs_branch != 0) {
+				evt_nvtxs_branch->GetEntry(index);
+			} else { 
+				printf("branch evt_nvtxs_branch does not exist!\n");
+				exit(1);
+			}
+			evt_nvtxs_isLoaded = true;
+		}
+		return evt_nvtxs_;
 	}
 	bool &	dielectronTrigger()
 	{
@@ -668,6 +691,7 @@ namespace tas {
 	unsigned int &evt_event();
 	unsigned int &evt_lumiBlock();
 	unsigned int &evt_run();
+	unsigned int &evt_nvtxs();
 	bool &dielectronTrigger();
 	bool &dimuonTrigger();
 	bool &electronmuonTrigger();
