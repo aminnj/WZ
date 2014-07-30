@@ -56,7 +56,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
     TH1F* h1D_met_data = new TH1F("met", "", 20, 0, 300); 
     TH1F* h1D_mt_data = new TH1F("mt", "", 20, 0, 400); 
     TH1F* h1D_mtW_data = new TH1F("mtW", "", 40, 0, 200); 
-    TH1F* h1D_zmass_data = new TH1F("zmass", "", 30, 70, 120); 
+    TH1F* h1D_zmass_data = new TH1F("zmass", "", 42, 70, 112); 
     TH1F* h1D_lepeta_data = new TH1F("lepeta", "", 50, -3.0, 3.0); 
     TH1F* h1D_leppt_data = new TH1F("leppt", "", 50, 0, 150); 
     TH1F* h1D_Wleppt_data = new TH1F("Wleppt", "", 30, 0, 150); 
@@ -94,6 +94,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
     // cout << ">>> manualScale is " << manualScale << endl;
     // DATADATA
     {
+        initCounter();
 
         clear_seen();
 
@@ -145,6 +146,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
 
                 std::vector<LorentzVector> goodEls;
                 std::vector<LorentzVector> goodMus;
+                std::vector<JetStruct> maybeGoodJets;
                 std::vector<JetStruct> goodJets;
                 std::map<int, int> goodToP4MapEl; // map indices in good{Els,Mus} to {els,mus}_p4 indices
                 std::map<int, int> goodToP4MapMu;
@@ -186,37 +188,65 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
                 if(goodMus.size() + goodEls.size() != 3) continue;
 
                 // select good jets
-                float ht = 0;
                 for (unsigned int iJet = 0; iJet < pfjets_p4().size(); iJet++){
                     if (pfjets_p4().at(iJet).pt()*pfjets_corL1FastL2L3().at(iJet) < 40) continue;
                     if (fabs(pfjets_p4().at(iJet).eta()) > 2.4) continue;
                     if (!passesLoosePFJetID().at(iJet)) continue;
-
-                    // deltaR match jets and leptons; if match, get rid of jet
-                    bool isIsolatedFromLepton = true;
-                    for(unsigned int iMu = 0; iMu < goodMus.size(); iMu++) {
-                        if( deltaR(goodMus.at(iMu),pfjets_p4().at(iJet)) < 0.4 ) {
-                            isIsolatedFromLepton = false; break;
-                        }
-                    }
-                    for(unsigned int iEl = 0; iEl < goodEls.size(); iEl++) {
-                        if( deltaR(goodEls.at(iEl),pfjets_p4().at(iJet)) < 0.4 ) {
-                            isIsolatedFromLepton = false; break;
-                        }
-                    }
-                    if(!isIsolatedFromLepton) continue;
-
-
-                    ht += pfjets_p4().at(iJet).pt()*pfjets_corL1FastL2L3().at(iJet);
-
 
                     JetStruct myJet = {*(new LorentzVector()), 0.0, -1};
                     myJet.jet = pfjets_p4().at(iJet);
                     myJet.pt = pfjets_p4().at(iJet).pt()*pfjets_corL1FastL2L3().at(iJet);
                     myJet.idx = iJet;
 
-                    goodJets.push_back(myJet);
+                    maybeGoodJets.push_back(myJet);
                 }
+
+                vector<int> closestJetsMu; 
+                for(unsigned int iMu = 0; iMu < goodMus.size(); iMu++) {
+                    double mindR = 999.0;
+                    int iClosestJet = -1;
+                    for(unsigned int iJet = 0; iJet < maybeGoodJets.size(); iJet++) {
+                        double dR = deltaR(goodMus.at(iMu),maybeGoodJets.at(iJet).jet);
+                        if( dR < min(mindR, 0.4) ) {
+                            mindR = dR;
+                            iClosestJet = iJet;
+                        }
+                    }
+                    if(iClosestJet != -1) {
+                        closestJetsMu.push_back(iClosestJet);
+                    }
+                }
+                vector<int> closestJetsEl; 
+                for(unsigned int iEl = 0; iEl < goodEls.size(); iEl++) {
+                    double mindR = 999.0;
+                    int iClosestJet = -1;
+                    for(unsigned int iJet = 0; iJet < maybeGoodJets.size(); iJet++) {
+                        double dR = deltaR(goodEls.at(iEl),maybeGoodJets.at(iJet).jet);
+                        if( dR < min(mindR, 0.4) ) {
+                            mindR = dR;
+                            iClosestJet = iJet;
+                        }
+                    }
+                    if(iClosestJet != -1) {
+                        closestJetsEl.push_back(iClosestJet);
+                    }
+                }
+                float ht = 0;
+                for(unsigned int iJet = 0; iJet < maybeGoodJets.size(); iJet++) {
+                    bool tooClose = false;
+                    for(unsigned int iMu = 0; iMu < closestJetsMu.size(); iMu++) {
+                        if(iJet == closestJetsMu.at(iMu)) tooClose = true;
+                    }
+                    for(unsigned int iEl = 0; iEl < closestJetsEl.size(); iEl++) {
+                        if(iJet == closestJetsEl.at(iEl)) tooClose = true;
+                    }
+                    if(tooClose) continue;
+
+                    goodJets.push_back(maybeGoodJets.at(iJet));
+                    ht += maybeGoodJets.at(iJet).pt;
+                }
+
+
                 if(ht < htLow || ht > htHigh) continue;
 
 
@@ -337,6 +367,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
                 fill(h1D_nbtags_data, nbtags, scale);
 
                 nGoodEvents++;
+                addToCounter(filename, scale);
 
                 if(goodJets.size() < 1) continue;
 
@@ -359,6 +390,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
                 fill(h1D_massZj2_data, massZj2, scale);
 
 
+
             }//event loop
 
         }//file loop
@@ -367,9 +399,12 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
         std::cout << " nGoodEvents: " << nGoodEvents << " nEventsTotal: " << nEventsTotal << std::endl;
         std::cout << "ASDF DATA " << tag << " " << nGoodEvents << std::endl;
 
-        std::cout << "This dataset (A+B+C+D) has 19.4 fb^-1 of data" << std::endl;
-        std::cout << " nGoodEvents scaled to 1/fb: " << nGoodEvents*(1.0/luminosity) << std::endl;
-        std::cout << " nGoodEvents scaled to 19.4/fb: " << nGoodEvents*(19.4/luminosity) << std::endl;
+        // std::cout << "This dataset (A+B+C+D) has 19.4 fb^-1 of data" << std::endl;
+        // std::cout << " nGoodEvents scaled to 1/fb: " << nGoodEvents*(1.0/luminosity) << std::endl;
+        // std::cout << " nGoodEvents scaled to 19.4/fb: " << nGoodEvents*(19.4/luminosity) << std::endl;
+
+        printCounter();
+
 
     } // DATADATA
 
@@ -437,6 +472,8 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
     vector<TH1F*> h1D_test_dphim_vec;
     vector<TH1F*> h1D_test_ptm_vec;
 
+    vector<TH1F*> h1D_test_dphinu_vec;
+
     vector<TH1F*> h1D_gen_dR_vec;
     vector<TH1F*> h1D_gen_id_vec;
 
@@ -444,8 +481,9 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
     vector<TH1F*> h1D_metphim_vec;
 
 
-    TH1F* error = new TH1F("error","",1,0,1);
-    error->Sumw2();
+    initCounter();
+    TH1D* error = new TH1D("error","",1,0,1);
+    // error->Sumw2();
 
     // File Loop
     int iFile = 0;
@@ -467,7 +505,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
         TH1F* h1D_met_file = new TH1F("met"+filename, "#slash{E}_{T};GeV;Entries", 20, 0, 300); 
         TH1F* h1D_mt_file = new TH1F("mt"+filename, "M_{T};GeV;Entries", 20, 0, 400); 
         TH1F* h1D_mtW_file = new TH1F("mtW"+filename, "W lep M_{T};GeV;Entries", 40, 0, 200); 
-        TH1F* h1D_zmass_file = new TH1F("zmass"+filename, "Z Mass;GeV;Entries", 30, 70, 120); 
+        TH1F* h1D_zmass_file = new TH1F("zmass"+filename, "Z Mass;GeV;Entries", 42, 70, 112); 
         TH1F* h1D_lepeta_file = new TH1F("lepeta"+filename, "lepton #eta;#eta;Entries", 50, -3.0, 3.0); 
         TH1F* h1D_leppt_file = new TH1F("leppt"+filename, "lepton p_{T};p_{T} [GeV];Entries", 50, 0, 150); 
         TH1F* h1D_Wleppt_file = new TH1F("Wleppt"+filename, "W lepton p_{T};p_{T} [GeV];Entries", 30, 0, 150); 
@@ -492,20 +530,20 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
         TH1F* h1D_lepetamu_file = new TH1F("lepetamu"+filename, "#mu #eta;#eta;Entries", 50, -3.0, 3.0); 
 
         TH1F* h1D_test_mete_file = new TH1F("testmete"+filename, "met for e;GeV;Entries", 40, 0, 200); 
-        TH1F* h1D_test_dphie_file = new TH1F("testphie"+filename, "dphi(met,e);GeV;Entries", 40, 0, M_PI+0.1); 
+        TH1F* h1D_test_dphie_file = new TH1F("testphie"+filename, "dphi(met,e);;Entries", 40, 0, M_PI+0.1); 
         TH1F* h1D_test_pte_file = new TH1F("testpte"+filename, "pt for e;GeV;Entries", 40, 0, 200); 
 
         TH1F* h1D_test_metm_file = new TH1F("testmetm"+filename, "met for mu;GeV;Entries", 40, 0, 200); 
-        TH1F* h1D_test_dphim_file = new TH1F("testphim"+filename, "dphi(met,mu);GeV;Entries", 40, 0, M_PI+0.1); 
+        TH1F* h1D_test_dphim_file = new TH1F("testphim"+filename, "dphi(met,mu);;Entries", 40, 0, M_PI+0.1); 
         TH1F* h1D_test_ptm_file = new TH1F("testptm"+filename, "pt for mu;GeV;Entries", 40, 0, 200); 
 
-        TH1F* h1D_gen_dR_file = new TH1F("gendr"+filename, "#DeltaR between reco W lepton and closest gen lepton", 60, 0, 0.15); 
-        TH1F* h1D_gen_id_file = new TH1F("genid"+filename, "abs(id) for gen particle matched to reco W lept;GeV;Entries", 40, 0, 40); 
+        TH1F* h1D_test_dphinu_file = new TH1F("testphinu"+filename, "dphi(W lep,gen nu);;Entries", 40, 0, M_PI+0.1); 
 
-        TH1F* h1D_metphie_file = new TH1F("metphie"+filename, "metphi for e from W;GeV;Entries", 30, -3.2, 3.2); 
-        TH1F* h1D_metphim_file = new TH1F("metphim"+filename, "metphi for m from W;GeV;Entries", 30, -3.2, 3.2); 
+        TH1F* h1D_gen_dR_file = new TH1F("gendr"+filename, "#DeltaR between reco W lepton and closest gen lepton", 60, 0, 0.4); 
+        TH1F* h1D_gen_id_file = new TH1F("genid"+filename, "abs(mother id) for gen particle matched to reco W lept;;Entries", 40, 0, 40); 
 
-        // h1D_dummy_vec.push_back(h1D_dummy_file); 
+        TH1F* h1D_metphie_file = new TH1F("metphie"+filename, "metphi for e from W;;Entries", 30, -3.2, 3.2); 
+        TH1F* h1D_metphim_file = new TH1F("metphim"+filename, "metphi for m from W;;Entries", 30, -3.2, 3.2); 
 
         h1D_njets_vec.push_back(h1D_njets_file); 
         h1D_ht_vec.push_back(h1D_ht_file); 
@@ -544,6 +582,8 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
         h1D_test_dphim_vec.push_back(h1D_test_dphim_file);
         h1D_test_ptm_vec.push_back(h1D_test_ptm_file);
 
+        h1D_test_dphinu_vec.push_back(h1D_test_dphinu_file);
+
         h1D_gen_dR_vec.push_back(h1D_gen_dR_file);
         h1D_gen_id_vec.push_back(h1D_gen_id_file);
 
@@ -568,6 +608,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
 
             std::vector<LorentzVector> goodEls;
             std::vector<LorentzVector> goodMus;
+            std::vector<JetStruct> maybeGoodJets;
             std::vector<JetStruct> goodJets;
             std::map<int, int> goodToP4MapEl; // map indices in good{Els,Mus} to {els,mus}_p4 indices
             std::map<int, int> goodToP4MapMu;
@@ -577,8 +618,6 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
             pair<float,float> p = getPhiCorrMET(pfmet_type1cor(), metphi(), evt_nvtxs(), evt_isRealData());
             float met = p.first;
             float metPhi = p.second;
-            // float met = pfmet_type1cor();
-            // float metPhi = metphi();
 
 
             if(met < metLow || met > metHigh) continue;
@@ -611,40 +650,66 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
             if(goodMus.size() + goodEls.size() != 3) continue;
 
             // select good jets
-            float ht = 0;
             for (unsigned int iJet = 0; iJet < pfjets_p4().size(); iJet++){
                 if (pfjets_p4().at(iJet).pt()*pfjets_corL1FastL2L3().at(iJet) < 40) continue;
                 if (fabs(pfjets_p4().at(iJet).eta()) > 2.4) continue;
                 if (!passesLoosePFJetID().at(iJet)) continue;
-
-                // deltaR match jets and leptons; if match, get rid of jet
-                bool isIsolatedFromLepton = true;
-                for(unsigned int iMu = 0; iMu < goodMus.size(); iMu++) {
-                    if( deltaR(goodMus.at(iMu),pfjets_p4().at(iJet)) < 0.4 ) {
-                        isIsolatedFromLepton = false; break;
-                    }
-                }
-                for(unsigned int iEl = 0; iEl < goodEls.size(); iEl++) {
-                    if( deltaR(goodEls.at(iEl),pfjets_p4().at(iJet)) < 0.4 ) {
-                        isIsolatedFromLepton = false; break;
-                    }
-                }
-                if(!isIsolatedFromLepton) continue;
-
-
-                ht += pfjets_p4().at(iJet).pt()*pfjets_corL1FastL2L3().at(iJet);
-
 
                 JetStruct myJet = {*(new LorentzVector()), 0.0, -1};
                 myJet.jet = pfjets_p4().at(iJet);
                 myJet.pt = pfjets_p4().at(iJet).pt()*pfjets_corL1FastL2L3().at(iJet);
                 myJet.idx = iJet;
 
-                goodJets.push_back(myJet);
+                maybeGoodJets.push_back(myJet);
             }
+
+            vector<int> closestJetsMu; 
+            for(unsigned int iMu = 0; iMu < goodMus.size(); iMu++) {
+                double mindR = 999.0;
+                int iClosestJet = -1;
+                for(unsigned int iJet = 0; iJet < maybeGoodJets.size(); iJet++) {
+                    double dR = deltaR(goodMus.at(iMu),maybeGoodJets.at(iJet).jet);
+                    if( dR < min(mindR, 0.4) ) {
+                        mindR = dR;
+                        iClosestJet = iJet;
+                    }
+                }
+                if(iClosestJet != -1) {
+                    closestJetsMu.push_back(iClosestJet);
+                }
+            }
+            vector<int> closestJetsEl; 
+            for(unsigned int iEl = 0; iEl < goodEls.size(); iEl++) {
+                double mindR = 999.0;
+                int iClosestJet = -1;
+                for(unsigned int iJet = 0; iJet < maybeGoodJets.size(); iJet++) {
+                    double dR = deltaR(goodEls.at(iEl),maybeGoodJets.at(iJet).jet);
+                    if( dR < min(mindR, 0.4) ) {
+                        mindR = dR;
+                        iClosestJet = iJet;
+                    }
+                }
+                if(iClosestJet != -1) {
+                    closestJetsEl.push_back(iClosestJet);
+                }
+            }
+            float ht = 0;
+            for(unsigned int iJet = 0; iJet < maybeGoodJets.size(); iJet++) {
+                bool tooClose = false;
+                for(unsigned int iMu = 0; iMu < closestJetsMu.size(); iMu++) {
+                    if(iJet == closestJetsMu.at(iMu)) tooClose = true;
+                }
+                for(unsigned int iEl = 0; iEl < closestJetsEl.size(); iEl++) {
+                    if(iJet == closestJetsEl.at(iEl)) tooClose = true;
+                }
+                if(tooClose) continue;
+
+                goodJets.push_back(maybeGoodJets.at(iJet));
+                ht += maybeGoodJets.at(iJet).pt;
+            }
+
+
             if(ht < htLow || ht > htHigh) continue;
-
-
 
             vector<int> pair = findZPair(goodEls, goodMus);
             vector<LorentzVector> leps;
@@ -706,11 +771,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
             if(nbtags >= btagCut) continue; // FIXME
 
 
-            // fill(h1D_dummy_file, 5.0,scale);
-
             // We are now in the region of interest
-
-
 
             // try to match W lepton to genps
             float mindR = 9999.0;
@@ -723,10 +784,22 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
                     brotherIdx = iLep;
                 }
 
+                // now try to find matching neutrino (id of same flavor neutrino = 1 + id of lepton)
+
+                for(unsigned int iNu = 0; iNu < genps_p4().size(); iNu++) {
+                    if( abs(genps_id().at(iNu)) == abs(genps_id().at(iLep)) + 1) {
+                        // fill(h1D_test_dphinu_file, deltaPhi(genps_p4().at(iNu).phi(), genps_p4().at(iLep).phi()), scale);
+                        fill(h1D_test_dphinu_file, deltaPhi(genps_p4().at(iNu).phi(), genps_p4().at(iLep).phi()), scale);
+                        break;
+                    }
+                }
+
             }
             if(brotherIdx >= 0) {
                 fill(h1D_gen_dR_file, mindR, scale);
-                fill(h1D_gen_id_file, abs(genps_id_mother().at(brotherIdx)), scale);
+                if(mindR < 0.15) {
+                    fill(h1D_gen_id_file, abs(genps_id_mother().at(brotherIdx)), scale);
+                }
             } else {
                 // cout << "ERROR: " << mindR << " " << brotherIdx << " " << endl;
             }
@@ -797,8 +870,9 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
             fill(h1D_ht_file,ht, scale);
             fill(h1D_met_file,met, scale);
             fill(h1D_nbtags_file, nbtags, scale);
-            fill(error,0.0,scale);
 
+            error->Fill(0.5,scale);
+            addToCounter(filename, scale);
             nGoodEvents++;
             nGoodEventsWeighted+=scale*1.0;
 
@@ -822,16 +896,19 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
             fill(h1D_ptj2_file, ptj2, scale);
             fill(h1D_massZj2_file, massZj2, scale);
 
+
         }//event loop
 
     }//file loop MCMC
 
     std::cout << " nGoodEvents: " << nGoodEvents << " nEventsTotal: " << nEventsTotal << std::endl;
-    std::cout << " nGoodEventsWeighted to 19.4 1/fb: " << nGoodEventsWeighted << std::endl;
+    std::cout << " nGoodEventsWeighted to 19.4 1/fb: " << error->GetBinContent(1) << std::endl;
 
-    std::cout << " error->GetBinContent(1): " << error->GetBinContent(1) << " error->GetBinError(1): " << error->GetBinError(1) << std::endl;
+    // std::cout << " error->GetBinContent(1): " << error->GetBinContent(1) << " error->GetBinError(1): " << error->GetBinError(1) << std::endl;
 
-    std::cout << "ASDF MC " << tag << " " << nGoodEventsWeighted << " " << error->GetBinError(1) << std::endl;
+    std::cout << "ASDF MC " << tag << " " << error->GetBinContent(1)  << " " << error->GetBinError(1) << std::endl;
+
+    printCounter();
 
     TString prefix("plots");
     prefix += tag;
@@ -840,7 +917,8 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
     // stringstream ss; ss << njetsCut;
     // std::string common = " --luminosity 19.4 --percentages --scaletodata --label njets#geq"+ss.str();
     // TString common = " --luminosity 19.4 --percentages --scaletodata --label njets#geq" + TString::Itoa(njetsCut,10);
-    TString common = " --luminosity 19.4 --percentages ";
+    // TString common = " --luminosity 19.4 --percentages ";
+    TString common = " --luminosity 19.4 --percentages --scaletodata";
     // std::string common = " --luminosity 19.4 --percentages --label njets>="+ss.str();
 
     // drawStacked(h1D_dummy_data, h1D_dummy_vec,prefix+"h1D_dummy.pdf",""+common);
@@ -853,7 +931,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
     drawStacked(h1D_mt_data, h1D_mt_vec,prefix+"h1D_mt.pdf","--binsize --centerlabel"+common);
     drawStacked(h1D_mtW_data, h1D_mtW_vec,prefix+"h1D_mtW.pdf","--binsize "+common);
     drawStacked(h1D_lepeta_data, h1D_lepeta_vec,prefix+"h1D_lepeta.pdf",""+common);
-    drawStacked(h1D_zmass_data, h1D_zmass_vec,prefix+"h1D_zmass.pdf","--binsize"+common);
+    drawStacked(h1D_zmass_data, h1D_zmass_vec,prefix+"h1D_zmass.pdf","--binsize --reorderstack"+common);
 
     drawStacked(h1D_mtWeemu_data, h1D_mtWeemu_vec,prefix+"h1D_mtWeemu.pdf","--binsize "+common);
     drawStacked(h1D_mtWmumue_data, h1D_mtWmumue_vec,prefix+"h1D_mtWmumue.pdf","--binsize "+common);
@@ -880,6 +958,8 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
     drawStacked(dog, h1D_test_metm_vec,prefix+"h1D_test_metm.pdf",""+common);
     drawStacked(dog, h1D_test_dphim_vec,prefix+"h1D_test_dphim.pdf",""+common);
     drawStacked(dog, h1D_test_ptm_vec,prefix+"h1D_test_ptm.pdf",""+common);
+
+    drawStacked(dog, h1D_test_dphinu_vec,prefix+"h1D_test_dphinu.pdf",""+common);
 
     drawStacked(dog, h1D_test_mete_vec,prefix+"h1D_test_mete.pdf",""+common);
     drawStacked(dog, h1D_test_dphie_vec,prefix+"h1D_test_dphie.pdf",""+common);
