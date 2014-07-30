@@ -20,6 +20,33 @@ typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<float> > LorentzVector;
 
 using namespace std;
 
+///////////////////////////
+////// counter stuff //////
+///////////////////////////
+TH1D * evtCounter = new TH1D("","",1,0,1); 
+map<TString, double> evtMap;
+void initCounter() {
+    evtCounter = new TH1D("","",1,0,1);
+    evtMap.clear();
+}
+void addToCounter(TString filename, double weight) {
+    evtCounter->Fill(0.5, weight);
+    if(evtMap.find(filename) == evtMap.end() ) evtMap[filename] = weight;
+    else evtMap[filename] += weight;
+}
+void printCounter() {
+    cout << string(30, '-') << endl << "Counter totals: " << endl;
+    for(map<TString,double>::iterator it = evtMap.begin(); it != evtMap.end(); it++)
+        cout << "\t" << it->first << "\t" << it->second << endl;
+
+    cout << "Total: " << evtCounter->GetBinContent(1) << " pm " << evtCounter->GetBinError(1) << endl;
+    cout << string(30, '-') << endl;
+}
+
+
+/////////////////////////////
+////// root math stuff //////
+/////////////////////////////
 double deltaR(const LorentzVector& p1, const LorentzVector& p2) {
     return ROOT::Math::VectorUtil::DeltaR(p1,p2);
 }
@@ -37,12 +64,23 @@ double MT(LorentzVector p1, float met, float metphi) {
     return sqrt( 2.0 * p1.Pt() * met * (1.0-cos(dPhi)) );
 }
 
+//////////////////////////////////////
+////// analysis utilities stuff //////
+//////////////////////////////////////
 vector<int> findZPair(std::vector<LorentzVector> goodEls, std::vector<LorentzVector> goodMus) {
+    /* Given a vector of electrons and a vector of muons, identify which 2 came from a Z
+     * and which came from a W.
+     *
+     * Returns a 5-tuple (v) with this information:
+     * v[0] : 0 if Z lept #1 is e, or 1 if mu
+     * v[1] : index in input vector for Z lept #1
+     * v[2] : index in input vector for Z lept #2
+     * v[3] : 0 if W lept #1 is e, or 1 if mu
+     * v[4] : index in input vector for W lept
+     */
     int nEl = goodEls.size();
     int nMu = goodMus.size();
     float ZMass = 91.1876;
-    // 1st elem is el (0) or mu (1), next 2 are the Z lep idxs
-    // 4th is el/mu of W lep, last is W lep idx
     vector<int> v(5, -1);
     // Z decays to pair of same flavour leptons, so we can check
     // electrons and muons separately
@@ -67,7 +105,7 @@ vector<int> findZPair(std::vector<LorentzVector> goodEls, std::vector<LorentzVec
             // now we've found the pair with mass closest to ZMass
             v[1] = iElZ; v[2] = jElZ; v[3] = 0; // W lep must be el
             v[4] = (0+1+2) - iElZ - jElZ; // index of W lepton
-            if(v[1] != -1 && v[2] != -1) return v;
+            return v;
         }
     } else if(nMu >= 2) {
         v[0] = 1; // pair must be muons
@@ -90,13 +128,16 @@ vector<int> findZPair(std::vector<LorentzVector> goodEls, std::vector<LorentzVec
             // now we've found the pair with mass closest to ZMass
             v[1] = iMuZ; v[2] = jMuZ; v[3] = 1; // W lep must be mu
             v[4] = (0+1+2) - iMuZ - jMuZ; // index of W lepton
-            if(v[1] != -1 && v[2] != -1) return v;
+            return v;
         }
     }
     cout << "shouldn't end up at end of zpair function" << endl;
     return v;
 }
 
+///////////////////////////////
+////// drawing utilities //////
+///////////////////////////////
 void drawHist(TH1F* hist, TString filename) {
     TCanvas* c0 = new TCanvas();
     hist->Draw();
@@ -116,8 +157,8 @@ double maxY(TH1F* data) {
     return maxYval;
 }
 
-void fill(TH1F* hist, float value, float scale=1.0) {
-    float maximum = hist->GetXaxis()->GetBinCenter(hist->GetNbinsX());
+void fill(TH1F* hist, double value, double scale=1.0) {
+    double maximum = hist->GetXaxis()->GetBinCenter(hist->GetNbinsX());
     hist->Fill(min(maximum,value),scale);
 }
 
@@ -173,6 +214,7 @@ vector<int> getColors() {
     // col = new TColor(icol,0.251,0.251,0.251); colors.push_back(icol); icol++;
 
 
+    // stole these from Alex and added a few more random colors
     colors.push_back(kMagenta-5);
     colors.push_back(kCyan-3);
     colors.push_back(kOrange-2);
@@ -185,7 +227,6 @@ vector<int> getColors() {
     colors.push_back(kAzure+1);
     colors.push_back(kOrange-8);
     colors.push_back(kGray);
-
 
     return colors;
 }
@@ -206,10 +247,9 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     bool haveData = (data->GetEntries() > 0);
     bool centerLabel = false;
     bool scaleToData = false;
-    // bool haveData = false;
+    bool reorderStack = false;
     double luminosity = 0.0;
 
-    // TString s(options);
     TPMERegexp re("--"), reSpace(" ");
     re.Split(options);
     for(int im = 0; im < re.NMatches(); im++) {
@@ -227,6 +267,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(key == "percentages") percentages = true;
         if(key == "centerlabel") centerLabel = true;
         if(key == "scaletodata") scaleToData = true;
+        if(key == "reorderstack") reorderStack = true;
         if(key == "luminosity") luminosity = val.Atof();
         if(key == "label") labels.push_back(val);
 
@@ -278,7 +319,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     }
 
     // bigger histograms on top for log scale, but smaller for linear scale
-    if(logScale) std::sort(hists.begin(), hists.end(), integralCompare);
+    if(logScale || reorderStack) std::sort(hists.begin(), hists.end(), integralCompare);
     else std::sort(hists.rbegin(), hists.rend(), integralCompare);
 
     double integral = 0;
@@ -309,12 +350,13 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         // if(overrideScale > 0) scale = overrideScale;
         // if(getScale != NULL) *getScale = scale; // return scale to user if he wants it
 
-        cout << "scaling mc to data by " << scale << endl;
+        // cout << "scaling mc to data by " << scale << endl;
 
         for(unsigned int ih = 0; ih < hists.size(); ih++) {
             hists[ih]->Scale(scale);
         }
         integral *= scale;
+
     }
 
     //set option variables
@@ -421,6 +463,11 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         //     comparison->SetBinError(ib, val*sqrt(pow(mcErr/mcVal,2) + pow(dataErr/dataVal,2)));
         // }
 
+        if(data->GetNbinsX() < 20) {
+            for(int ib = 0; ib < data->GetNbinsX(); ib++) {
+                std::cout << " data->GetBinContent(ib): " << data->GetBinContent(ib) << " mcSum->GetBinContent(ib): " << mcSum->GetBinContent(ib) << std::endl;
+            }
+        }
 
 
         // // FIXME
