@@ -248,6 +248,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     bool centerLabel = false;
     bool scaleToData = false;
     bool reorderStack = false;
+    bool printBins = false;
     double luminosity = 0.0;
 
     TPMERegexp re("--"), reSpace(" ");
@@ -268,6 +269,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(key == "centerlabel") centerLabel = true;
         if(key == "scaletodata") scaleToData = true;
         if(key == "reorderstack") reorderStack = true;
+        if(key == "printbins") printBins = true;
         if(key == "luminosity") luminosity = val.Atof();
         if(key == "label") labels.push_back(val);
 
@@ -332,7 +334,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         cleanName(re2) = "";
         // fill colors: http://root.cern.ch/root/html/TAttFill.html
         // if(ih < colors.size())
-            // hists[ih]->SetFillColor(colors[ih]);
+        // hists[ih]->SetFillColor(colors[ih]);
 
         hists[ih]->SetLineColor(kBlack);
 
@@ -463,9 +465,9 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         //     comparison->SetBinError(ib, val*sqrt(pow(mcErr/mcVal,2) + pow(dataErr/dataVal,2)));
         // }
 
-        if(data->GetNbinsX() < 20) {
+        if(printBins) {
             for(int ib = 0; ib < data->GetNbinsX(); ib++) {
-                std::cout << " data->GetBinContent(ib): " << data->GetBinContent(ib) << " mcSum->GetBinContent(ib): " << mcSum->GetBinContent(ib) << std::endl;
+                std::cout << "\tbin: " << ib << "\tdata: " << data->GetBinContent(ib) << "\tmcsum: " << mcSum->GetBinContent(ib) << std::endl;
             }
         }
 
