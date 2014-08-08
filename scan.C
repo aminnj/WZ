@@ -923,7 +923,7 @@ int scan(unsigned int njetsLow=0, unsigned int njetsHigh=9999, int btagCut=9999,
 
     // drawStacked(h1D_dummy_data, h1D_dummy_vec,prefix+"h1D_dummy.pdf",""+common);
 
-    drawStacked(h1D_njets_data, h1D_njets_vec, prefix+"h1D_njets.pdf", "--centerlabel"+common);
+    drawStacked(h1D_njets_data, h1D_njets_vec, prefix+"h1D_njets.pdf", "--centerlabel --printbins"+common);
     drawStacked(h1D_ht_data, h1D_ht_vec,prefix+"h1D_ht.pdf","--logscale --binsize --centerlabel"+common);
     drawStacked(h1D_leppt_data, h1D_leppt_vec,prefix+"h1D_leppt.pdf","--logscale --centerlabel"+common);
     drawStacked(h1D_Wleppt_data, h1D_Wleppt_vec,prefix+"h1D_Wleppt.pdf","--logscale --centerlabel"+common);
