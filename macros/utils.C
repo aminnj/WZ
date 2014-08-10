@@ -1,5 +1,7 @@
 #include "TH1.h"
 #include "THStack.h"
+#include "TGraph.h"
+#include "TMultiGraph.h"
 #include "TStyle.h"
 #include "TLegend.h"
 #include "TLatex.h"
@@ -14,7 +16,6 @@
 #include "Math/VectorUtil.h"
 
 #include "TROOT.h" 
-#include "TSystem.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -34,10 +35,10 @@ void initCounter() {
     evtCounter = new TH1D("","",1,0,1);
     evtMap.clear();
 }
-void addToCounter(TString filename, double weight) {
+void addToCounter(TString name, double weight=1.0) {
     evtCounter->Fill(0.5, weight);
-    if(evtMap.find(filename) == evtMap.end() ) evtMap[filename] = weight;
-    else evtMap[filename] += weight;
+    if(evtMap.find(name) == evtMap.end() ) evtMap[name] = weight;
+    else evtMap[name] += weight;
 }
 void printCounter() {
     cout << string(30, '-') << endl << "Counter totals: " << endl;
@@ -235,7 +236,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     bool reorderStack = false;
     bool printBins = false;
     double luminosity = 0.0;
-    // double transparency = 1.0;
+    double transparency = 1.0;
 
     TPMERegexp re("--"), reSpace(" ");
     re.Split(options);
@@ -257,6 +258,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(key == "reorderstack") reorderStack = true;
         if(key == "printbins") printBins = true;
         if(key == "luminosity") luminosity = val.Atof();
+        if(key == "transparency") transparency = val.Atof();
         if(key == "label") labels.push_back(val);
         if(key == "nostack") drawOptions += "nostack";
 
@@ -304,10 +306,23 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(ih < colors.size()) hists[ih]->SetFillColor(colors[ih]);
 
         if(drawOptions == "nostack") {
-            // hists[ih]->SetLineColor(TColor::GetColorDark(colors[ih]));
             hists[ih]->SetLineWidth(hists[ih]->GetLineWidth()*2);
 
             hists[ih]->SetFillStyle(3144);
+
+            // // XXX
+            // // In root 5.30/18 and beyond, can just do
+            // // h1->SetFillColorAlpha(kRed, 0.5);
+            // // BAM! Done. So convoluted right now...
+            // TColor *col = gROOT->GetColor(colors[ih]);
+            // float r = 0, g = 0, b = 0;
+            // col->GetRGB(r,g,b);
+            // int icol = 1001+ih;
+            // TColor *colTrans = new TColor(icol, r, g, b, "", transparency);
+            // std::cout << r << " " << g << " " << b << std::endl;
+            // hists[ih]->SetFillColor(icol);
+            // // XXX
+
         }
 
         hists[ih]->SetLineColor(kBlack);
@@ -466,4 +481,90 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
 
     return 0;
 }
+
+int drawGraph(vector<vector<float> > xvecs, vector<vector<float> > yvecs, TString filename, TString options = "") {
+
+    myStyle();
+
+    bool logScale = false;
+    bool centerLabel = false;
+    TString title = "";
+    TString xlabel = "";
+    TString ylabel = "";
+    TString legendPosition = "";
+    vector<TString> labels;
+    vector<TString> titles;
+
+    TPMERegexp re("--"), reSpace(" ");
+    re.Split(options);
+    for(int im = 0; im < re.NMatches(); im++) {
+        TString param = re[im].Strip(TString::kBoth);
+        if(param.Length() < 1) continue;
+
+        reSpace.Split(param,2);
+        TString key = reSpace[0], val = reSpace[1];
+
+        // change option variables
+        if(key == "title") title = val;
+        if(key == "xlabel") xlabel = val;
+        if(key == "ylabel") ylabel = val;
+        if(key == "logscale") logScale = true;
+        if(key == "centerlabel") centerLabel = true;
+        if(key == "label") labels.push_back(val);
+        if(key == "titles") titles.push_back(val);
+        if(key == "legendposition") legendPosition = val;
+
+    }
+
+    TMultiGraph *mg = new TMultiGraph();
+    TCanvas* c0 = new TCanvas();
+
+    float y1 = 0.35, y2 = 0.60;
+    if(legendPosition == "bottom") y1 = 0.15, y2 = 0.35;
+    if(legendPosition == "top") y1 = 0.63, y2 = 0.88;
+    TLegend* leg = new TLegend(0.7,y1,0.90,y2);
+
+    mg->Draw("ACP");
+
+    std::vector<int> colors = getColors();
+    for(unsigned int ig = 0; ig < xvecs.size(); ig++) {
+
+        TGraph* graph = new TGraph(xvecs[ig].size(), &xvecs[ig][0], &yvecs[ig][0]);
+        graph->SetMarkerColor(colors[ig]);
+        graph->SetLineColor(colors[ig]);
+        graph->SetMarkerStyle(kFullDotLarge);
+        graph->SetMarkerSize(1.5);
+        graph->SetLineWidth(2);
+        mg->Add(graph);
+
+        leg->AddEntry(graph,ig < titles.size() ? titles[ig] : "","lp");
+
+    }
+
+    mg->SetTitle(title);
+    mg->GetXaxis()->SetTitle(xlabel);
+    mg->GetYaxis()->SetTitle(ylabel);
+
+    leg->SetFillStyle(0);
+    leg->SetBorderSize(0);
+    leg->SetTextSize(0.04);
+    leg->Draw();
+
+    // labels
+    float labelX = 0.17;
+    float labelYOffset = 0.015, labelDY = 0.04;
+
+    if(labels.size() > 0) {
+        for(unsigned int ilabel = 0; ilabel < labels.size(); ilabel++) {
+            drawLabel( labelX,0.89-labelYOffset, labels.at(ilabel) );
+            labelYOffset += labelDY;
+        }
+    }
+
+    if(logScale) c0->SetLogy(1);
+    c0->Print(filename);
+    if(logScale) c0->SetLogy(0);
+
+    return 0;
+    }
 
