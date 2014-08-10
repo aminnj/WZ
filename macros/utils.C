@@ -58,10 +58,14 @@ double deltaR(const LorentzVector& p1, const LorentzVector& p2) {
 }
 
 double deltaPhi(float phi1, float phi2) {
-    double dPhi = phi1 - phi2;
-    while(dPhi > M_PI) dPhi -= 2.0*M_PI;
-    while(dPhi <= -M_PI) dPhi += 2.0*M_PI;
-    return fabs(dPhi);
+    double dPhi = fabs( phi1 - phi2 );
+    if( dPhi > M_PI ) dPhi = 2.0*M_PI - dPhi;
+    return dPhi;
+
+    // double dPhi = phi1 - phi2;
+    // while(dPhi > M_PI) dPhi -= 2.0*M_PI;
+    // while(dPhi <= -M_PI) dPhi += 2.0*M_PI;
+    // return fabs(dPhi);
 }
 
 double MT(LorentzVector p1, float met, float metphi) {
@@ -215,7 +219,7 @@ vector<int> getColors() {
     return colors;
 }
 
-int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString options = "", vector<string> titles = vector<string>()) {
+int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString options = "") {
 
     if(hists.size() < 1) return 1;
 
@@ -227,16 +231,18 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     TString ylabel = hists[0]->GetYaxis()->GetTitle();
     TString drawOptions = "";
     vector<TString> labels;
+    vector<TString> titles;
     bool logScale = false;
     bool percentages = false;
     bool haveData = (data->GetEntries() > 0);
-    bool customTitles = titles.size() == hists.size();
+    // bool customTitles = titles.size() == hists.size();
     bool centerLabel = false;
     bool scaleToData = false;
     bool reorderStack = false;
     bool printBins = false;
     double luminosity = 0.0;
     double transparency = 1.0;
+
 
     TPMERegexp re("--"), reSpace(" ");
     re.Split(options);
@@ -261,6 +267,19 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(key == "transparency") transparency = val.Atof();
         if(key == "label") labels.push_back(val);
         if(key == "nostack") drawOptions += "nostack";
+
+        if(key == "titles") {
+            TPMERegexp rePipe("\\|");
+            rePipe.Split(val);
+            // cout << val << endl;
+            // cout << "###" << rePipe.NMatches() << endl;
+            for(int it = 0; it < rePipe.NMatches(); it++) {
+                TString ti = rePipe[it].Strip(TString::kBoth);
+                // cout << ti << endl;
+                titles.push_back(ti);
+                // reSpace.Split(param,2);
+            }
+        }
 
         if(key == "binsize") {
             float binWidth = hists[0]->GetBinWidth(0);
@@ -291,12 +310,12 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     // stack->Draw(drawOptions); // If some stuff starts screwing up (segfault) put this back in
 
     // attach custom titles to histos before we sort so they don't get jumbled!
-    if(customTitles) {
+    // if(customTitles) {
         for(unsigned int ih = 0; ih < hists.size(); ih++) {
-            TString temp = titles[ih];
+            TString temp = ih < titles.size() ? titles[ih] : " ";
             hists[ih]->SetTitle(temp);
         }
-    }
+    // }
 
     std::vector<int> colors = getColors();
     // attach colors to histos so scheme is consistent
@@ -343,7 +362,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         cleanName(re2) = "";
 
 
-        if(customTitles)
+        if(titles.size() > 0)
             cleanName = hists[ih]->GetTitle();
 
         leg->AddEntry(hists[ih],cleanName,"f");
@@ -511,8 +530,19 @@ int drawGraph(vector<vector<float> > xvecs, vector<vector<float> > yvecs, TStrin
         if(key == "logscale") logScale = true;
         if(key == "centerlabel") centerLabel = true;
         if(key == "label") labels.push_back(val);
-        if(key == "titles") titles.push_back(val);
         if(key == "legendposition") legendPosition = val;
+
+        if(key == "titles") {
+            TPMERegexp rePipe("\\|");
+            rePipe.Split(val);
+            cout << val << endl;
+            cout << "###" << rePipe.NMatches() << endl;
+            for(int it = 0; it < rePipe.NMatches(); it++) {
+                TString ti = rePipe[it].Strip(TString::kBoth);
+                cout << ti << endl;
+                titles.push_back(ti);
+            }
+        }
 
     }
 
@@ -537,7 +567,7 @@ int drawGraph(vector<vector<float> > xvecs, vector<vector<float> > yvecs, TStrin
         graph->SetLineWidth(2);
         mg->Add(graph);
 
-        leg->AddEntry(graph,ig < titles.size() ? titles[ig] : "","lp");
+        leg->AddEntry(graph,ig < titles.size() ? titles[ig] : " ","lp");
 
     }
 
@@ -566,5 +596,5 @@ int drawGraph(vector<vector<float> > xvecs, vector<vector<float> > yvecs, TStrin
     if(logScale) c0->SetLogy(0);
 
     return 0;
-    }
+}
 
