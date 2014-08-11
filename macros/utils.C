@@ -145,13 +145,26 @@ vector<int> findZPair(std::vector<LorentzVector> goodEls, std::vector<LorentzVec
     return v;
 }
 
-///////////////////////////////
-////// drawing utilities //////
-///////////////////////////////
-void drawHist(TH1F* hist, TString filename) {
-    TCanvas* c0 = new TCanvas();
-    hist->Draw();
-    c0->Print(filename);
+////////////////////////////
+////// root utilities //////
+////////////////////////////
+double getIntegral(TH1F* h, bool includeOverflow = true) {
+    return h->Integral(0,h->GetNbinsX()+includeOverflow);
+}
+
+double getIntegralBetween(TH1F* h, float xmin, float xmax) {
+    // http://root.cern.ch/root/roottalk/roottalk03/2211.html
+    TAxis *axis = h->GetXaxis();
+    int bmin = axis->FindBin(xmin); // built in safeguard to fix
+    int bmax = axis->FindBin(xmax); // going out of histogram's range :)
+    double integral = h->Integral(bmin,bmax);
+    integral -= h->GetBinContent(bmin)*(xmin-axis->GetBinLowEdge(bmin))/ axis->GetBinWidth(bmin);
+    integral -= h->GetBinContent(bmax)*(axis->GetBinUpEdge(bmax)-xmax)/ axis->GetBinWidth(bmax);
+    return integral;
+}
+
+double getFractionBetween(TH1F* h, float xmin, float xmax) {
+    return getIntegralBetween(h, xmin, xmax) / getIntegral(h);
 }
 
 bool integralCompare(TH1F* h1, TH1F* h2) {
@@ -170,6 +183,15 @@ double maxY(TH1F* data) {
 void fill(TH1F* hist, double value, double scale=1.0) {
     double maximum = hist->GetXaxis()->GetBinCenter(hist->GetNbinsX());
     hist->Fill(min(maximum,value),scale);
+}
+
+////////////////////////////////
+////// plotting utilities //////
+////////////////////////////////
+void drawHist(TH1F* hist, TString filename) {
+    TCanvas* c0 = new TCanvas();
+    hist->Draw();
+    c0->Print(filename);
 }
 
 void myStyle() {
@@ -241,7 +263,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     bool reorderStack = false;
     bool printBins = false;
     double luminosity = 0.0;
-    double transparency = 1.0;
+    // double transparency = 1.0;
 
 
     TPMERegexp re("--"), reSpace(" ");
@@ -264,7 +286,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(key == "reorderstack") reorderStack = true;
         if(key == "printbins") printBins = true;
         if(key == "luminosity") luminosity = val.Atof();
-        if(key == "transparency") transparency = val.Atof();
+        // if(key == "transparency") transparency = val.Atof();
         if(key == "label") labels.push_back(val);
         if(key == "nostack") drawOptions += "nostack";
 
@@ -583,6 +605,7 @@ int drawGraph(vector<vector<float> > xvecs, vector<vector<float> > yvecs, TStrin
     // labels
     float labelX = 0.17;
     float labelYOffset = 0.015, labelDY = 0.04;
+    if(centerLabel) labelX = 0.42;
 
     if(labels.size() > 0) {
         for(unsigned int ilabel = 0; ilabel < labels.size(); ilabel++) {
