@@ -1,4 +1,5 @@
 #include "TH1.h"
+#include "TH2.h"
 #include "THStack.h"
 #include "TGraph.h"
 #include "TMultiGraph.h"
@@ -164,6 +165,8 @@ double getIntegralBetween(TH1F* h, float xmin, float xmax) {
 }
 
 double getFractionBetween(TH1F* h, float xmin, float xmax) {
+    double integral = getIntegral(h);
+    if(integral < 0.001) return 0.0;
     return getIntegralBetween(h, xmin, xmax) / getIntegral(h);
 }
 
@@ -211,6 +214,30 @@ void myStyle() {
     gStyle->SetLabelFont(42, "XYZ");
     gStyle->SetLabelOffset(0.007, "XYZ");
     gStyle->SetLabelSize(0.05, "XYZ");
+}
+
+void myStyle2D() {
+    gStyle->SetOptStat(0);
+    gStyle->SetTitleColor(1, "XYZ");
+    gStyle->SetTitleFont(42, "XYZ");
+    gStyle->SetTitleSize(0.18, "XYZ");
+
+    gStyle->SetLabelColor(1, "XYZ");
+    gStyle->SetLabelFont(42, "XYZ");
+    gStyle->SetLabelOffset(0.007, "XYZ");
+    gStyle->SetLabelSize(0.05, "XYZ");
+}
+
+void setGradient() {
+    // http://ultrahigh.org/2007/08/making-pretty-root-color-palettes/
+    const int NRGBs = 5;
+    const int NCont = 255;
+    double stops[NRGBs] = { 0.00, 0.34, 0.61, 0.84, 1.00 };
+    double red[NRGBs]   = { 0.00, 0.00, 0.87, 1.00, 0.51 };
+    double green[NRGBs] = { 0.00, 0.81, 1.00, 0.20, 0.00 };
+    double blue[NRGBs]  = { 0.51, 1.00, 0.12, 0.00, 0.00 };
+    TColor::CreateGradientColorTable(NRGBs, stops, red, green, blue, NCont);
+    gStyle->SetNumberContours(NCont);
 }
 
 void drawLabel(float x1, float y1, TString s, float size=0.04, int align=13) {
@@ -262,6 +289,9 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     bool scaleToData = false;
     bool reorderStack = false;
     bool printBins = false;
+    bool keepOrder = false;
+    bool normalize = false;
+    bool noFill = false;
     double luminosity = 0.0;
     // double transparency = 1.0;
 
@@ -285,6 +315,9 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(key == "scaletodata") scaleToData = true;
         if(key == "reorderstack") reorderStack = true;
         if(key == "printbins") printBins = true;
+        if(key == "keeporder") keepOrder = true;
+        if(key == "normalize") normalize = true;
+        if(key == "nofill") noFill = true;
         if(key == "luminosity") luminosity = val.Atof();
         // if(key == "transparency") transparency = val.Atof();
         if(key == "label") labels.push_back(val);
@@ -333,10 +366,10 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
 
     // attach custom titles to histos before we sort so they don't get jumbled!
     // if(customTitles) {
-        for(unsigned int ih = 0; ih < hists.size(); ih++) {
-            TString temp = ih < titles.size() ? titles[ih] : " ";
-            hists[ih]->SetTitle(temp);
-        }
+    for(unsigned int ih = 0; ih < hists.size(); ih++) {
+        TString temp = ih < titles.size() ? titles[ih] : " ";
+        hists[ih]->SetTitle(temp);
+    }
     // }
 
     std::vector<int> colors = getColors();
@@ -365,15 +398,23 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
             // // XXX
 
         }
-
         hists[ih]->SetLineColor(kBlack);
+
+        if(noFill) {
+            if(ih < colors.size()) hists[ih]->SetLineColor(colors[ih]);
+            hists[ih]->SetFillStyle(0);
+            hists[ih]->SetLineWidth(hists[ih]->GetLineWidth()*2);
+        }
+
 
     }
     stack->Draw(drawOptions);
 
     // bigger histograms on top for log scale, but smaller for linear scale
-    if(logScale || reorderStack) std::sort(hists.begin(), hists.end(), integralCompare);
-    else std::sort(hists.rbegin(), hists.rend(), integralCompare);
+    if(!keepOrder) {
+        if(logScale || reorderStack) std::sort(hists.begin(), hists.end(), integralCompare);
+        else std::sort(hists.rbegin(), hists.rend(), integralCompare);
+    }
 
     double MCintegral = 0;
     for(unsigned int ih = 0; ih < hists.size(); ih++) {
@@ -391,6 +432,11 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         stack->Add(hists[ih]);
 
         MCintegral += hists[ih]->Integral(0,hists[ih]->GetNbinsX()+1);
+
+        if(normalize) {
+            float scale = getIntegral(hists[ih]);
+            hists[ih]->Scale(1.0/scale);
+        }
     }
 
     stack->SetTitle(title);
@@ -523,6 +569,48 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     return 0;
 }
 
+int drawHist2D(TH2F* hist, TString filename, TString options = "") {
+
+    myStyle2D();
+    setGradient();
+
+    TString title = hist->GetTitle();
+    TString xlabel = hist->GetXaxis()->GetTitle();
+    TString ylabel = hist->GetYaxis()->GetTitle();
+    TString drawOptions = "colz";
+    bool logScale = false;
+
+    TPMERegexp re("--"), reSpace(" ");
+    re.Split(options);
+    for(int im = 0; im < re.NMatches(); im++) {
+        TString param = re[im].Strip(TString::kBoth);
+        if(param.Length() < 1) continue;
+
+        reSpace.Split(param,2);
+        TString key = reSpace[0], val = reSpace[1];
+
+        // change option variables
+        if(key == "title") title = val;
+        if(key == "xlabel") xlabel = val;
+        if(key == "ylabel") ylabel = val;
+        if(key == "logscale") logScale = true;
+        if(key == "drawoptions") drawOptions = val;
+        if(key == "showstats") gStyle->SetOptStat("ne");
+    }
+
+    TCanvas* c0 = new TCanvas();
+    hist->SetTitle(title);
+    hist->GetXaxis()->SetTitle(xlabel);
+    hist->GetYaxis()->SetTitle(ylabel);
+
+    hist->Draw(drawOptions);
+
+    c0->SetLogz(logScale);
+    c0->Print(filename);
+
+    return 0;
+}
+
 int drawGraph(vector<vector<float> > xvecs, vector<vector<float> > yvecs, TString filename, TString options = "") {
 
     myStyle();
@@ -557,11 +645,8 @@ int drawGraph(vector<vector<float> > xvecs, vector<vector<float> > yvecs, TStrin
         if(key == "titles") {
             TPMERegexp rePipe("\\|");
             rePipe.Split(val);
-            cout << val << endl;
-            cout << "###" << rePipe.NMatches() << endl;
             for(int it = 0; it < rePipe.NMatches(); it++) {
                 TString ti = rePipe[it].Strip(TString::kBoth);
-                cout << ti << endl;
                 titles.push_back(ti);
             }
         }
