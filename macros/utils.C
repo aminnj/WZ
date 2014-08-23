@@ -187,6 +187,11 @@ void fill(TH1F* hist, double value, double scale=1.0) {
     double maximum = hist->GetXaxis()->GetBinCenter(hist->GetNbinsX());
     hist->Fill(min(maximum,value),scale);
 }
+void fill2D(TH2F* hist, double valuex, double valuey, double scale=1.0) {
+    double maximumx = hist->GetXaxis()->GetBinCenter(hist->GetNbinsX());
+    double maximumy = hist->GetYaxis()->GetBinCenter(hist->GetNbinsY());
+    hist->Fill(min(maximumx,valuex), min(maximumy,valuey),scale);
+}
 
 ////////////////////////////////
 ////// plotting utilities //////
@@ -217,6 +222,11 @@ void myStyle() {
 }
 
 void myStyle2D() {
+    gStyle->SetPadTopMargin(0.10);
+    gStyle->SetPadBottomMargin(0.10);
+    gStyle->SetPadLeftMargin(0.10);
+    gStyle->SetPadRightMargin(0.10);
+
     gStyle->SetOptStat(0);
     gStyle->SetTitleColor(1, "XYZ");
     gStyle->SetTitleFont(42, "XYZ");
@@ -257,7 +267,7 @@ vector<int> getColors() {
     colors.push_back(kOrange-2);
     colors.push_back(kRed-7);
     colors.push_back(kGreen-2);
-    colors.push_back(kYellow-7);
+    colors.push_back(kYellow-3); // originally kYellow-7
     colors.push_back(kBlue-7);
     colors.push_back(kMagenta-9);
     colors.push_back(kCyan-10);
@@ -403,7 +413,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(noFill) {
             if(ih < colors.size()) hists[ih]->SetLineColor(colors[ih]);
             hists[ih]->SetFillStyle(0);
-            hists[ih]->SetLineWidth(hists[ih]->GetLineWidth()*2);
+            hists[ih]->SetLineWidth(hists[ih]->GetLineWidth()*1.5);
         }
 
 
