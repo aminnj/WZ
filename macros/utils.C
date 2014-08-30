@@ -584,12 +584,15 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
 }
 
 int drawHist(TH1F* hist, TString filename, TString options = "") {
-    TH1F * dog = new TH1F("","",1,0,1);
+    // for those times when you just want to plot one dang thing (90% of cases)
+    // I don't know why this took forever to add.
+    //
+    TH1F * useless = new TH1F("","",1,0,1);
 
     vector<TH1F*> temp;
     temp.push_back(hist);
 
-    drawStacked(dog, temp, filename, options);
+    drawStacked(useless, temp, filename, options);
     return 0;
 
 }
