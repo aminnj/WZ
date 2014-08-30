@@ -196,12 +196,6 @@ void fill2D(TH2F* hist, double valuex, double valuey, double scale=1.0) {
 ////////////////////////////////
 ////// plotting utilities //////
 ////////////////////////////////
-void drawHist(TH1F* hist, TString filename) {
-    TCanvas* c0 = new TCanvas();
-    hist->Draw();
-    c0->Print(filename);
-}
-
 void myStyle() {
     // took these from alex since they look nice
     gStyle->SetPadTopMargin(0.10);
@@ -225,7 +219,7 @@ void myStyle2D() {
     gStyle->SetPadTopMargin(0.10);
     gStyle->SetPadBottomMargin(0.10);
     gStyle->SetPadLeftMargin(0.10);
-    gStyle->SetPadRightMargin(0.10);
+    gStyle->SetPadRightMargin(0.15);
 
     gStyle->SetOptStat(0);
     gStyle->SetTitleColor(1, "XYZ");
@@ -258,6 +252,14 @@ void drawLabel(float x1, float y1, TString s, float size=0.04, int align=13) {
     label->Draw();
 }
 
+// void drawHist(TH1F* hist, TString filename) {
+//     myStyle();
+//     gStyle->SetOptStat(0);
+//     TCanvas* c0 = new TCanvas();
+//     hist->Draw();
+//     c0->Print(filename);
+// }
+
 vector<int> getColors() {
     vector<int> colors;
 
@@ -283,6 +285,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     if(hists.size() < 1) return 1;
 
     myStyle();
+    gStyle->SetOptStat(0);
 
     // default option variables
     TString title = hists[0]->GetTitle();
@@ -302,6 +305,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     bool keepOrder = false;
     bool normalize = false;
     bool noFill = false;
+    bool noLegend = false;
     double luminosity = 0.0;
     // double transparency = 1.0;
 
@@ -328,6 +332,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(key == "keeporder") keepOrder = true;
         if(key == "normalize") normalize = true;
         if(key == "nofill") noFill = true;
+        if(key == "nolegend") noLegend = true;
         if(key == "luminosity") luminosity = val.Atof();
         // if(key == "transparency") transparency = val.Atof();
         if(key == "label") labels.push_back(val);
@@ -473,7 +478,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     leg->SetFillStyle(0);
     leg->SetBorderSize(0);
     leg->SetTextSize(0.04);
-    leg->Draw();
+    if(!noLegend) leg->Draw();
 
     // labels
     float labelX = 0.17;
@@ -541,7 +546,6 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
             }
         }
 
-        gStyle->SetOptStat(0);
         comparison->SetTitle("");
         comparison->GetYaxis()->SetRangeUser(0.0, 2.0);
         comparison->GetYaxis()->SetLabelSize(0.13);
@@ -577,6 +581,17 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     if(logScale) pTop->SetLogy(0);
 
     return 0;
+}
+
+int drawHist(TH1F* hist, TString filename, TString options = "") {
+    TH1F * dog = new TH1F("","",1,0,1);
+
+    vector<TH1F*> temp;
+    temp.push_back(hist);
+
+    drawStacked(dog, temp, filename, options);
+    return 0;
+
 }
 
 int drawHist2D(TH2F* hist, TString filename, TString options = "") {
