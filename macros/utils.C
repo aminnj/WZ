@@ -291,6 +291,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     TString title = hists[0]->GetTitle();
     TString xlabel = hists[0]->GetXaxis()->GetTitle();
     TString ylabel = hists[0]->GetYaxis()->GetTitle();
+    TString legendPosition = "";
     TString drawOptions = "";
     vector<TString> labels;
     vector<TString> titles;
@@ -305,6 +306,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     bool keepOrder = false;
     bool normalize = false;
     bool noFill = false;
+    bool noSave = false;
     bool noLegend = false;
     double luminosity = 0.0;
     // double transparency = 1.0;
@@ -332,11 +334,13 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(key == "keeporder") keepOrder = true;
         if(key == "normalize") normalize = true;
         if(key == "nofill") noFill = true;
+        if(key == "nosave") noSave = true;
         if(key == "nolegend") noLegend = true;
         if(key == "luminosity") luminosity = val.Atof();
         // if(key == "transparency") transparency = val.Atof();
         if(key == "label") labels.push_back(val);
         if(key == "nostack") drawOptions += "nostack";
+        if(key == "legendposition") legendPosition = val;
 
         if(key == "titles") {
             TPMERegexp rePipe("\\|");
@@ -360,8 +364,20 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
 
 
     THStack* stack = new THStack("stack", hists[0]->GetTitle());
-    TLegend* leg = new TLegend(0.7,0.55,0.90,0.88);
     TCanvas* c0 = new TCanvas();
+
+    float y1leg = 0.45, y2leg = 0.70;
+    float x1leg = 0.70, x2leg = 0.90;
+    if(legendPosition.Contains("bottom")) { y1leg = 0.17; y2leg = 0.37; }
+    if(legendPosition.Contains("top")) { y1leg = 0.63; y2leg = 0.88; }
+    if(legendPosition.Contains("left")) { x1leg = 0.18; x2leg = 0.38; }
+    if(legendPosition.Contains("right")) { x1leg = 0.70; x2leg = 0.90; }
+
+    if(legendPosition.Contains("top") && legendPosition.Contains("left")) {
+        y1leg -= 0.12; y2leg -= 0.12; // so it doesn't conflict with labels
+    }
+    TLegend* leg = new TLegend(x1leg,y1leg,x2leg,y2leg);
+    // TLegend* leg = new TLegend(0.7,0.55,0.90,0.88); // original
 
     // handle pads
     TPad *pTop, *pBot;
@@ -391,18 +407,18 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     // attach colors to histos so scheme is consistent
     for(unsigned int ih = 0; ih < hists.size(); ih++) {
 
-
         if(ih < colors.size()) hists[ih]->SetFillColor(colors[ih]);
 
         if(drawOptions == "nostack") {
-            hists[ih]->SetLineWidth(hists[ih]->GetLineWidth()*2);
 
+            hists[ih]->SetLineWidth(3);
             hists[ih]->SetFillStyle(3144);
 
             // // XXX
             // // In root 5.30/18 and beyond, can just do
-            // // h1->SetFillColorAlpha(kRed, 0.5);
+            // hists[ih]->SetFillColorAlpha(colors[ih], 0.3);
             // // BAM! Done. So convoluted right now...
+            // float transparency = 0.25;
             // TColor *col = gROOT->GetColor(colors[ih]);
             // float r = 0, g = 0, b = 0;
             // col->GetRGB(r,g,b);
@@ -418,7 +434,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
         if(noFill) {
             if(ih < colors.size()) hists[ih]->SetLineColor(colors[ih]);
             hists[ih]->SetFillStyle(0);
-            hists[ih]->SetLineWidth(hists[ih]->GetLineWidth()*1.5);
+            hists[ih]->SetLineWidth(3);
         }
 
 
@@ -577,7 +593,7 @@ int drawStacked(TH1F* data, vector <TH1F*> hists, TString filename, TString opti
     }
 
     if(logScale) pTop->SetLogy(1);
-    c0->Print(filename);
+    if(!noSave) c0->Print(filename);
     if(logScale) pTop->SetLogy(0);
 
     return 0;
@@ -607,6 +623,7 @@ int drawHist2D(TH2F* hist, TString filename, TString options = "") {
     TString ylabel = hist->GetYaxis()->GetTitle();
     TString drawOptions = "colz";
     bool logScale = false;
+    bool noSave = false;
 
     TPMERegexp re("--"), reSpace(" ");
     re.Split(options);
@@ -622,6 +639,7 @@ int drawHist2D(TH2F* hist, TString filename, TString options = "") {
         if(key == "xlabel") xlabel = val;
         if(key == "ylabel") ylabel = val;
         if(key == "logscale") logScale = true;
+        if(key == "nosave") noSave = true;
         if(key == "drawoptions") drawOptions = val;
         if(key == "showstats") gStyle->SetOptStat("ne");
     }
@@ -634,7 +652,7 @@ int drawHist2D(TH2F* hist, TString filename, TString options = "") {
     hist->Draw(drawOptions);
 
     c0->SetLogz(logScale);
-    c0->Print(filename);
+    if(!noSave) c0->Print(filename);
 
     return 0;
 }
@@ -685,8 +703,8 @@ int drawGraph(vector<vector<float> > xvecs, vector<vector<float> > yvecs, TStrin
     TCanvas* c0 = new TCanvas();
 
     float y1 = 0.35, y2 = 0.60;
-    if(legendPosition == "bottom") y1 = 0.15, y2 = 0.35;
-    if(legendPosition == "top") y1 = 0.63, y2 = 0.88;
+    if(legendPosition == "bottom") { y1 = 0.15; y2 = 0.35; }
+    if(legendPosition == "top") { y1 = 0.63; y2 = 0.88; }
     TLegend* leg = new TLegend(0.7,y1,0.90,y2);
 
     mg->Draw("ACP");
